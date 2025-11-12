@@ -12,7 +12,7 @@ services:
       DB_HOST: db
       DB_DATABASE: devialet
       DB_USERNAME: root
-      DB_PASSWORD: secret
+      DB_PASSWORD: mysql
     depends_on:
       - db
 
@@ -32,7 +32,7 @@ services:
       MYSQL_DATABASE: devialet
       MYSQL_ROOT_PASSWORD: secret
     volumes:
-      - dbdata:/var/lib/mysql
+      - dbdata:/var/lib/mysql 
 
 volumes:
   dbdata:

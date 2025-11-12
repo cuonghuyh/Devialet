@@ -11,7 +11,8 @@
     
     @if(app()->environment('local'))
         {{-- Development: Load from Vite dev server --}}
-        <script type="module" src="http://localhost:5173/src/main.jsx"></script>
+        <script type="module" crossorigin src="http://localhost:5173/@vite/client"></script>
+        <script type="module" crossorigin src="http://localhost:5173/src/main.jsx"></script>
     @else
         {{-- Production: Load built assets --}}
         @vite(['frontend/src/main.jsx'])
