@@ -1,0 +1,38 @@
+services:
+  app:
+    build: ./backend
+    container_name: devialet_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www
+      - ./backend/vendor:/var/www/vendor
+    environment:
+      APP_ENV: local
+      DB_HOST: db
+      DB_DATABASE: devialet
+      DB_USERNAME: root
+      DB_PASSWORD: secret
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    container_name: devialet_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.0
+    container_name: devialet_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: devialet
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - dbdata:/var/lib/mysql
+
+volumes:
+  dbdata:

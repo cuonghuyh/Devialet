@@ -1,0 +1,159 @@
+.add-to-cart-button {
+  --width: 140px;
+  --height: 45px;
+  --tooltip-height: 40px;
+  --tooltip-width: 110px;
+  --gap-between-tooltip-to-button: 18px;
+  --button-color: #222;
+  --tooltip-color: #fff;
+  width: var(--width);
+  height: var(--height);
+  background: var(--button-color);
+  position: relative;
+  text-align: center;
+  border-radius: 0.45em;
+  font-family: 'Poppins', sans-serif;
+  transition: background 0.3s;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.add-to-cart-button::before {
+  position: absolute;
+  content: attr(data-tooltip);
+  width: var(--tooltip-width);
+  height: var(--tooltip-height);
+  background-color: #555;
+  font-size: 0.9rem;
+  color: #fff;
+  border-radius: 0.25em;
+  line-height: var(--tooltip-height);
+  bottom: calc(var(--height) + var(--gap-between-tooltip-to-button) + 10px);
+  left: calc(50% - var(--tooltip-width) / 2);
+  font-weight: 500;
+}
+
+.add-to-cart-button::after {
+  position: absolute;
+  content: '';
+  width: 0;
+  height: 0;
+  border: 10px solid transparent;
+  border-top-color: #555;
+  left: calc(50% - 10px);
+  bottom: calc(100% + var(--gap-between-tooltip-to-button) - 10px);
+}
+
+.add-to-cart-button::after,
+.add-to-cart-button::before {
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.5s;
+}
+
+.text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.button-wrapper,
+.text,
+.icon {
+  overflow: hidden;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  color: #fff;
+}
+
+.text {
+  top: 0;
+}
+
+.text,
+.icon {
+  transition: top 0.5s;
+}
+
+.icon {
+  color: #fff;
+  top: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.add-to-cart-button:hover {
+  background: #222;
+}
+
+.add-to-cart-button:hover .text {
+  top: -100%;
+}
+
+.add-to-cart-button:hover .icon {
+  top: 0;
+}
+
+.add-to-cart-button:hover:before,
+.add-to-cart-button:hover:after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.add-to-cart-button:hover:after {
+  bottom: calc(var(--height) + var(--gap-between-tooltip-to-button) - 20px);
+}
+
+.add-to-cart-button:hover:before {
+  bottom: calc(var(--height) + var(--gap-between-tooltip-to-button));
+}
+
+.add-to-cart-button:active {
+  transform: scale(0.98);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .add-to-cart-button {
+    --width: 120px;
+    --height: 42px;
+    --tooltip-width: 90px;
+  }
+  
+  .text {
+    font-size: 0.85rem;
+  }
+  
+  .icon svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .add-to-cart-button {
+    --width: 110px;
+    --height: 40px;
+    --tooltip-width: 80px;
+  }
+  
+  .text {
+    font-size: 0.8rem;
+  }
+  
+  .icon svg {
+    width: 20px;
+    height: 20px;
+  }
+}
