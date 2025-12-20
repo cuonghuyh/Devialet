@@ -23,16 +23,28 @@ class ProductController extends Controller
             }
         }
 
-        // Search by name or description
-        if ($request->has('search')) {
+        // Optimized search with fulltext or LIKE fallback
+        if ($request->has('search') && !empty($request->search)) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('description', 'LIKE', "%{$searchTerm}%");
-            });
+            
+            // Try fulltext search first (faster for longer texts)
+            try {
+                $query->whereRaw(
+                    "MATCH(name, description) AGAINST(? IN NATURAL LANGUAGE MODE)",
+                    [$searchTerm]
+                );
+            } catch (\Exception $e) {
+                // Fallback to LIKE if fulltext index not available
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                });
+            }
         }
 
-        $products = $query->get();
+        // Order by relevance and get results
+        $products = $query->orderBy('created_at', 'desc')
+                         ->get();
         
         // Check if request wants JSON (API request)
         if ($request->wantsJson() || $request->is('api/*')) {
@@ -142,7 +154,7 @@ class ProductController extends Controller
                 'category_id' => $request->category_id,
                 'description' => $request->description,
                 'stock' => $request->stock,
-                'image_url' => $imageUrl,
+                'images' => $imageUrl ? [$imageUrl] : [],
             ]);
 
             return response()->json([
@@ -184,7 +196,7 @@ class ProductController extends Controller
                 $result = $cloudinary->upload($request->file('image')->getRealPath(), [
                     'folder' => 'devialet/products'
                 ]);
-                $product->image_url = $result['secure_url'];
+                $product->images = [$result['secure_url']];
             }
 
             // Update slug if name changed

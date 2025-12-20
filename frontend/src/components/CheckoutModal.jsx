@@ -188,6 +188,53 @@ const CheckoutModal = ({ isOpen, onClose, cartItems, total, onCheckoutSuccess })
                 </div>
               </label>
 
+              <label className={`payment-option ${formData.payment_method === 'momo' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="payment_method"
+                  value="momo"
+                  checked={formData.payment_method === 'momo'}
+                  onChange={handleChange}
+                />
+                <div className="payment-option-content">
+                  <div className="payment-icon momo">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="12" r="10"/>
+                      <text x="12" y="16" fontSize="12" fontWeight="bold" textAnchor="middle" fill="white">M</text>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>MoMo</strong>
+                    <span>Pay via MoMo e-wallet</span>
+                  </div>
+                </div>
+              </label>
+
+              <label className={`payment-option ${formData.payment_method === 'vietqr' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="payment_method"
+                  value="vietqr"
+                  checked={formData.payment_method === 'vietqr'}
+                  onChange={handleChange}
+                />
+                <div className="payment-option-content">
+                  <div className="payment-icon vietqr">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                      <rect x="7" y="7" width="3" height="3"/>
+                      <rect x="14" y="7" width="3" height="3"/>
+                      <rect x="7" y="14" width="3" height="3"/>
+                      <path d="M14 14h3v3h-3z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>VietQR</strong>
+                    <span>Scan QR to pay instantly</span>
+                  </div>
+                </div>
+              </label>
+
               <label className={`payment-option ${formData.payment_method === 'bank_transfer' ? 'active' : ''}`}>
                 <input
                   type="radio"
@@ -228,6 +275,44 @@ const CheckoutModal = ({ isOpen, onClose, cartItems, total, onCheckoutSuccess })
                 </div>
               </label>
             </div>
+
+            {/* Payment Instructions */}
+            {formData.payment_method === 'momo' && (
+              <div className="payment-instruction">
+                <div className="instruction-header">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                  </svg>
+                  <span>How to pay with MoMo</span>
+                </div>
+                <ol>
+                  <li>After placing order, you'll receive a MoMo payment link</li>
+                  <li>Open MoMo app and complete the payment</li>
+                  <li>Your order will be confirmed automatically</li>
+                </ol>
+              </div>
+            )}
+
+            {formData.payment_method === 'vietqr' && (
+              <div className="payment-instruction">
+                <div className="instruction-header">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                  </svg>
+                  <span>How to pay with VietQR</span>
+                </div>
+                <ol>
+                  <li>After placing order, a QR code will be displayed</li>
+                  <li>Open your banking app and scan the QR code</li>
+                  <li>Confirm the transfer amount and complete payment</li>
+                  <li>Your order will be confirmed within 5 minutes</li>
+                </ol>
+              </div>
+            )}
           </div>
 
           <div className="form-section">

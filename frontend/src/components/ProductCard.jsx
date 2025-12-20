@@ -4,7 +4,8 @@ import './ProductCard.css';
 
 const ProductCard = ({ product, onClick }) => {
   const [imageError, setImageError] = React.useState(false);
-  const imageUrl = product.image_url || product.image;
+  // Always use image_url, as 'image' column is removed
+  const imageUrl = product.image_url;
   
   return (
     <div className="product-card" onClick={() => onClick && onClick(product)}>

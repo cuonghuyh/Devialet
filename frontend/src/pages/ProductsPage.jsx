@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import ProductCard from '../components/ProductCard';
-import AddToCartButton from '../components/AddToCartButton';
 import { productsAPI } from '../api/products';
 import useCartStore from '../store/cartStore';
 import useAuthStore from '../store/authStore';
@@ -11,22 +9,23 @@ const ProductsPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuthStore();
-  const { itemCount, addToCart } = useCartStore();
+  const { addToCart } = useCartStore();
   
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [sortBy, setSortBy] = useState('featured');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [viewMode, setViewMode] = useState('grid');
+  const [showMobileFilter, setShowMobileFilter] = useState(false);
 
-  // Show notification function
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
-    setTimeout(() => {
-      setNotification(null);
-    }, 3000);
+    setTimeout(() => setNotification(null), 3000);
   };
 
   useEffect(() => {
@@ -65,6 +64,7 @@ const ProductsPage = () => {
     } else {
       setSearchParams({ category });
     }
+    setShowMobileFilter(false);
   };
 
   const handleProductClick = (product) => {
@@ -81,351 +81,444 @@ const ProductsPage = () => {
 
     const result = await addToCart(product.id, 1);
     if (result.success) {
-      showNotification(`✓ Đã thêm ${product.name} vào giỏ hàng!`, 'success');
+      showNotification(`Đã thêm "${product.name}" vào giỏ hàng!`, 'success');
     } else {
-      showNotification('❌ Không thể thêm sản phẩm vào giỏ hàng', 'error');
+      showNotification(result.message || 'Không thể thêm sản phẩm', 'error');
     }
   };
 
+  // Sort products
+  const sortedProducts = [...products].sort((a, b) => {
+    switch (sortBy) {
+      case 'price-low':
+        return parseFloat(a.price) - parseFloat(b.price);
+      case 'price-high':
+        return parseFloat(b.price) - parseFloat(a.price);
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'newest':
+        return new Date(b.created_at) - new Date(a.created_at);
+      default:
+        return 0;
+    }
+  });
+
+  // Filter by price
+  const filteredProducts = sortedProducts.filter(product => {
+    const price = parseFloat(product.price);
+    if (priceRange.min && price < parseFloat(priceRange.min)) return false;
+    if (priceRange.max && price > parseFloat(priceRange.max)) return false;
+    return true;
+  });
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-US').format(price);
+  };
+
   return (
-    <div className="products-page-new">
-      {/* Parallax Hero with 3D Effect */}
-      <section className="hero-parallax">
-        <div className="parallax-layer layer-1">
-          <div className="floating-shape shape-1"></div>
-          <div className="floating-shape shape-2"></div>
-          <div className="floating-shape shape-3"></div>
-        </div>
-        
-        <div className="hero-main">
-          <div className="hero-badge">
-            <span className="badge-dot"></span>
-            <span>Premium Audio Experience</span>
-          </div>
-          
-          <h1 className="hero-title-3d">
-            <span className="title-line" data-text="Acoustic">Acoustic</span>
-            <span className="title-line" data-text="Mastery">Mastery</span>
-          </h1>
-          
-          <p className="hero-desc">
-            Where engineering meets art. Discover a world of unparalleled sound.
-          </p>
-
-          <div className="hero-stats">
-            <div className="stat-item">
-              <div className="stat-number">{products.length}+</div>
-              <div className="stat-label">Products</div>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <div className="stat-number">{categories.length}</div>
-              <div className="stat-label">Categories</div>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <div className="stat-number">100%</div>
-              <div className="stat-label">Premium</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="scroll-indicator">
-          <div className="scroll-mouse">
-            <div className="scroll-wheel"></div>
-          </div>
-          <span>Scroll to explore</span>
-        </div>
-      </section>
-
-      {/* Notification Toast */}
+    <div className="shop-page">
+      {/* Notification */}
       {notification && (
-        <div className={`notification-toast ${notification.type}`}>
-          <div className="toast-icon">
-            {notification.type === 'success' ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/>
-                <line x1="9" y1="9" x2="15" y2="15"/>
-              </svg>
-            )}
-          </div>
-          <span className="toast-message">{notification.message}</span>
+        <div className={`shop-notification ${notification.type}`}>
+          {notification.type === 'success' ? (
+            <svg className="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          ) : (
+            <svg className="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          )} {notification.message}
         </div>
       )}
 
-      {/* Category Tabs with Line Indicator */}
-      <section className="category-tabs-section">
-        <div className="tabs-container">
-          <div className="tabs-header">
-            <h2 className="section-heading">
-              <span className="heading-line"></span>
-              Explore Collections
-            </h2>
-          </div>
-
-          <div className="category-tabs">
-            <button
-              className={`tab-item ${selectedCategory === 'all' ? 'active' : ''}`}
-              onClick={() => handleCategoryChange('all')}
-            >
-              <div className="tab-icon-wrapper">
-                <svg className="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <rect x="3" y="3" width="7" height="7" rx="1"/>
-                  <rect x="14" y="3" width="7" height="7" rx="1"/>
-                  <rect x="14" y="14" width="7" height="7" rx="1"/>
-                  <rect x="3" y="14" width="7" height="7" rx="1"/>
-                </svg>
-              </div>
-              <div className="tab-content">
-                <span className="tab-name">All Products</span>
-                <span className="tab-count">{products.length} items</span>
-              </div>
-              <div className="tab-glow"></div>
-            </button>
-
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                className={`tab-item ${selectedCategory === category.slug ? 'active' : ''}`}
-                onClick={() => handleCategoryChange(category.slug)}
-              >
-                <div className="tab-icon-wrapper">
-                  {category.slug === 'speakers' && (
-                    <svg className="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <rect x="5" y="2" width="14" height="20" rx="2"/>
-                      <circle cx="12" cy="8" r="3"/>
-                      <circle cx="12" cy="16" r="4"/>
-                    </svg>
-                  )}
-                  {category.slug === 'headphones' && (
-                    <svg className="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-                      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-                    </svg>
-                  )}
-                  {category.slug === 'amplifiers' && (
-                    <svg className="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <rect x="2" y="7" width="20" height="10" rx="2"/>
-                      <circle cx="6" cy="12" r="2"/>
-                      <path d="M15 9v6M18 9v6"/>
-                    </svg>
-                  )}
-                  {!['speakers', 'headphones', 'amplifiers'].includes(category.slug) && (
-                    <svg className="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M12 6v6l4 2"/>
-                    </svg>
-                  )}
-                </div>
-                <div className="tab-content">
-                  <span className="tab-name">{category.name}</span>
-                  <span className="tab-count">
-                    {products.filter(p => p.category_id === category.id).length} items
-                  </span>
-                </div>
-                <div className="tab-glow"></div>
-              </button>
-            ))}
-          </div>
+      {/* Breadcrumb */}
+      <div className="shop-breadcrumb">
+        <div className="breadcrumb-container">
+          <a href="/">Trang chủ</a>
+          <span className="separator">›</span>
+          <span className="current">Sản phẩm</span>
+          {selectedCategory !== 'all' && (
+            <>
+              <span className="separator">›</span>
+              <span className="current">
+                {categories.find(c => c.slug === selectedCategory)?.name}
+              </span>
+            </>
+          )}
         </div>
-      </section>
+      </div>
 
-      {/* Products Showcase */}
-      {loading ? (
-        <section className="loading-showcase">
-          <div className="loading-visual">
-            <div className="pulse-ring ring-1"></div>
-            <div className="pulse-ring ring-2"></div>
-            <div className="pulse-ring ring-3"></div>
-            <div className="loading-logo">
+      {/* Mobile Filter Toggle */}
+      <button 
+        className="mobile-filter-toggle"
+        onClick={() => setShowMobileFilter(!showMobileFilter)}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="4" y1="6" x2="20" y2="6"/>
+          <line x1="4" y1="12" x2="20" y2="12"/>
+          <line x1="4" y1="18" x2="20" y2="18"/>
+        </svg>
+        Bộ lọc
+      </button>
+
+      <div className="shop-container">
+        {/* Sidebar Filters */}
+        <aside className={`shop-sidebar ${showMobileFilter ? 'show' : ''}`}>
+          <div className="sidebar-header">
+            <h2>Bộ lọc</h2>
+            <button className="close-sidebar" onClick={() => setShowMobileFilter(false)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 18V5l12-2v13M9 18l-7 2V7l7-2"/>
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
-            </div>
+            </button>
           </div>
-          <h3 className="loading-title">Curating Excellence</h3>
-          <p className="loading-text">Preparing your premium audio experience...</p>
-        </section>
-      ) : (
-        <section className="products-showcase">
-          <div className="showcase-header">
-            <div className="header-left">
-              <h2 className="showcase-title">
-                {selectedCategory === 'all' 
-                  ? 'Featured Collection' 
-                  : categories.find(c => c.slug === selectedCategory)?.name || 'Products'}
-              </h2>
-              <div className="products-meta">
-                <span className="meta-count">{products.length}</span>
-                <span className="meta-label">{products.length === 1 ? 'masterpiece' : 'masterpieces'}</span>
+
+          {/* Categories */}
+          <div className="filter-section">
+            <h3 className="filter-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+              </svg>
+              Danh mục
+            </h3>
+            <ul className="category-list">
+              <li 
+                className={`category-item ${selectedCategory === 'all' ? 'active' : ''}`}
+                onClick={() => handleCategoryChange('all')}
+              >
+                <span className="category-name">Tất cả sản phẩm</span>
+                <span className="category-count">{products.length}</span>
+              </li>
+              {categories.map(cat => (
+                <li 
+                  key={cat.id}
+                  className={`category-item ${selectedCategory === cat.slug ? 'active' : ''}`}
+                  onClick={() => handleCategoryChange(cat.slug)}
+                >
+                  <span className="category-name">{cat.name}</span>
+                  <span className="category-count">
+                    {products.filter(p => p.category_id === cat.id).length}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Price Filter */}
+          <div className="filter-section">
+            <h3 className="filter-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="1" x2="12" y2="23"/>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+              Khoảng giá
+            </h3>
+            <div className="price-inputs">
+              <div className="price-input-wrapper">
+                <span className="currency">$</span>
+                <input 
+                  type="number" 
+                  placeholder="Từ"
+                  value={priceRange.min}
+                  onChange={(e) => setPriceRange({...priceRange, min: e.target.value})}
+                />
+              </div>
+              <span className="price-separator">—</span>
+              <div className="price-input-wrapper">
+                <span className="currency">$</span>
+                <input 
+                  type="number" 
+                  placeholder="Đến"
+                  value={priceRange.max}
+                  onChange={(e) => setPriceRange({...priceRange, max: e.target.value})}
+                />
               </div>
             </div>
-
-            {searchTerm && (
-              <div className="search-badge">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <circle cx="11" cy="11" r="8"/>
-                  <path d="M21 21l-4.35-4.35"/>
+            <div className="price-shortcuts">
+              <button onClick={() => setPriceRange({ min: '', max: '500' })}>Dưới $500</button>
+              <button onClick={() => setPriceRange({ min: '500', max: '1000' })}>$500 - $1K</button>
+              <button onClick={() => setPriceRange({ min: '1000', max: '2000' })}>$1K - $2K</button>
+              <button onClick={() => setPriceRange({ min: '2000', max: '' })}>Trên $2K</button>
+            </div>
+            {(priceRange.min || priceRange.max) && (
+              <button 
+                className="clear-filter-btn"
+                onClick={() => setPriceRange({ min: '', max: '' })}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
-                <span>"{searchTerm}"</span>
-                <button 
-                  className="clear-btn"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSearchParams({});
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </div>
+                Xóa bộ lọc giá
+              </button>
             )}
           </div>
 
-          {products.length > 0 ? (
-            <div className="products-masonry">
-              {products.map((product, index) => (
+          {/* Rating Filter */}
+          <div className="filter-section">
+            <h3 className="filter-title">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+              Đánh giá
+            </h3>
+            <div className="rating-filters">
+              {[5, 4, 3, 2, 1].map(rating => (
+                <label key={rating} className="rating-option">
+                  <input type="radio" name="rating" />
+                  <div className="stars">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className={`star ${i < rating ? 'filled' : ''}`}>★</span>
+                    ))}
+                  </div>
+                  <span className="rating-text">trở lên</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        {/* Overlay for mobile */}
+        {showMobileFilter && (
+          <div className="sidebar-overlay" onClick={() => setShowMobileFilter(false)}></div>
+        )}
+
+        {/* Main Content */}
+        <main className="shop-main">
+          {/* Toolbar */}
+          <div className="shop-toolbar">
+            <div className="toolbar-left">
+              <p className="results-count">
+                <strong>{filteredProducts.length}</strong> sản phẩm
+                {searchTerm && (
+                  <span className="search-term">
+                    kết quả cho "{searchTerm}"
+                    <button className="clear-search" onClick={() => {
+                      setSearchTerm('');
+                      setSearchParams({});
+                    }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </span>
+                )}
+              </p>
+            </div>
+            
+            <div className="toolbar-right">
+              <div className="sort-dropdown">
+                <label>Sắp xếp:</label>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                  <option value="featured">Nổi bật</option>
+                  <option value="newest">Mới nhất</option>
+                  <option value="price-low">Giá thấp → cao</option>
+                  <option value="price-high">Giá cao → thấp</option>
+                  <option value="name">Tên A-Z</option>
+                </select>
+              </div>
+
+              <div className="view-toggle">
+                <button 
+                  className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                  onClick={() => setViewMode('grid')}
+                  title="Lưới"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/>
+                  </svg>
+                </button>
+                <button 
+                  className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => setViewMode('list')}
+                  title="Danh sách"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="3" y="4" width="18" height="4" rx="1"/>
+                    <rect x="3" y="10" width="18" height="4" rx="1"/>
+                    <rect x="3" y="16" width="18" height="4" rx="1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Products Grid/List */}
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
+              <p>Đang tải sản phẩm...</p>
+            </div>
+          ) : filteredProducts.length > 0 ? (
+            <div className={`products-grid ${viewMode}`}>
+              {filteredProducts.map(product => (
                 <div 
                   key={product.id} 
-                  className="masonry-item"
-                  style={{ 
-                    animationDelay: `${index * 0.08}s`,
-                    '--index': index
-                  }}
+                  className="product-card"
+                  onClick={() => handleProductClick(product)}
                 >
-                  <div className="product-card-new" onClick={() => handleProductClick(product)}>
-                    <div className="card-image-wrapper">
-                      <img 
-                        src={product.image_url} 
-                        alt={product.name}
-                        className="card-image"
-                      />
-                      <div className="image-overlay">
-                        <button 
-                          className="quick-view-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleProductClick(product);
-                          }}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                          </svg>
-                          <span>View Details</span>
-                        </button>
+                  <div className="product-image">
+                    <img src={product.image_url} alt={product.name} loading="lazy" />
+                    {product.discount_price && (
+                      <span className="discount-badge">
+                        -{Math.round((1 - product.discount_price / product.price) * 100)}%
+                      </span>
+                    )}
+                    <button 
+                      className="wishlist-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        showNotification('Đã thêm vào yêu thích!');
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div className="product-info">
+                    <span className="product-brand">
+                      {categories.find(c => c.id === product.category_id)?.name || 'Devialet'}
+                    </span>
+                    <h3 className="product-name">{product.name}</h3>
+                    
+                    <div className="product-rating">
+                      <div className="stars">
+                        {[...Array(5)].map((_, i) => (
+                          <span key={i} className={`star ${i < 4 ? 'filled' : ''}`}>★</span>
+                        ))}
                       </div>
+                      <span className="rating-count">(128 đánh giá)</span>
                     </div>
 
-                    <div className="card-info">
-                      <div className="info-top">
-                        <h3 className="product-name">{product.name}</h3>
-                        <div className="product-price">
-                          <span className="price-currency">$</span>
-                          <span className="price-amount">{parseFloat(product.price).toFixed(0)}</span>
-                          <span className="price-decimal">.{(parseFloat(product.price) % 1).toFixed(2).substring(2)}</span>
-                        </div>
-                      </div>
-
+                    {viewMode === 'list' && (
                       <p className="product-desc">{product.description}</p>
-
-                      <div className="card-actions">
-                        <button
-                          className="add-cart-btn"
-                          onClick={(e) => handleAddToCart(product, e)}
-                        >
-                          <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <circle cx="9" cy="21" r="1"/>
-                            <circle cx="20" cy="21" r="1"/>
-                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                          </svg>
-                          <span className="btn-text">Add to Cart</span>
-                          <div className="btn-shine"></div>
-                        </button>
-                      </div>
+                    )}
+                    
+                    <div className="product-pricing">
+                      {product.discount_price ? (
+                        <>
+                          <span className="current-price">${formatPrice(product.discount_price)}</span>
+                          <span className="original-price">${formatPrice(product.price)}</span>
+                        </>
+                      ) : (
+                        <span className="current-price">${formatPrice(product.price)}</span>
+                      )}
                     </div>
+
+                    <div className="product-badges">
+                      <span className="badge shipping">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="1" y="3" width="15" height="13"/>
+                          <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                          <circle cx="5.5" cy="18.5" r="2.5"/>
+                          <circle cx="18.5" cy="18.5" r="2.5"/>
+                        </svg>
+                        Freeship
+                      </span>
+                      <span className="badge return">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="1 4 1 10 7 10"/>
+                          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                        </svg>
+                        Đổi trả 30 ngày
+                      </span>
+                    </div>
+
+                    <button 
+                      className="add-to-cart-btn"
+                      onClick={(e) => handleAddToCart(product, e)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="9" cy="21" r="1"/>
+                        <circle cx="20" cy="21" r="1"/>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                      </svg>
+                      Thêm vào giỏ
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="empty-state">
-              <div className="empty-visual">
-                <svg viewBox="0 0 200 200" fill="none">
-                  <circle cx="100" cy="100" r="80" stroke="currentColor" strokeWidth="2" opacity="0.1"/>
-                  <circle cx="100" cy="100" r="60" stroke="currentColor" strokeWidth="2" opacity="0.2"/>
-                  <circle cx="100" cy="100" r="40" stroke="currentColor" strokeWidth="2" opacity="0.3"/>
-                  <path d="M100 70 L100 130 M70 100 L130 100" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+              <div className="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
                 </svg>
               </div>
-              <h3 className="empty-title">No Products Available</h3>
-              <p className="empty-text">
-                We couldn't find any products matching your criteria.<br/>
-                Try exploring a different category or view all products.
-              </p>
-              <button 
-                className="empty-cta"
-                onClick={() => handleCategoryChange('all')}
-              >
-                <span>Browse All Products</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12 5 19 12 12 19"/>
+              <h3>Không tìm thấy sản phẩm</h3>
+              <p>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+              <button onClick={() => {
+                setSelectedCategory('all');
+                setPriceRange({ min: '', max: '' });
+                setSearchParams({});
+              }}>
+                Xem tất cả sản phẩm
+              </button>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {filteredProducts.length > 0 && (
+            <div className="pagination">
+              <button className="page-btn prev" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+              </button>
+              <button className="page-btn active">1</button>
+              <button className="page-btn">2</button>
+              <button className="page-btn">3</button>
+              <span className="page-dots">...</span>
+              <button className="page-btn">10</button>
+              <button className="page-btn next">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9 18 15 12 9 6"/>
                 </svg>
               </button>
             </div>
           )}
-        </section>
-      )}
+        </main>
+      </div>
 
-      {/* Login Modal with Blur Background */}
+      {/* Login Modal */}
       {showLoginModal && (
-        <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close-btn" onClick={() => setShowLoginModal(false)}>
+        <div className="modal-overlay" onClick={() => setShowLoginModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowLoginModal(false)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
-            
-            <div className="modal-icon-wrapper">
-              <div className="icon-bg"></div>
+            <div className="modal-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
             </div>
-
-            <h2 className="modal-title">Authentication Required</h2>
-            <p className="modal-message">
-              Sign in to your account to add items to your cart<br/>
-              and unlock exclusive features.
-            </p>
-
-            <div className="modal-buttons">
-              <button 
-                className="modal-btn btn-ghost" 
-                onClick={() => setShowLoginModal(false)}
-              >
-                Maybe Later
+            <h2>Đăng nhập để tiếp tục</h2>
+            <p>Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng</p>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setShowLoginModal(false)}>
+                Để sau
               </button>
-              <button 
-                className="modal-btn btn-gradient" 
-                onClick={() => navigate('/login')}
-              >
-                <span>Sign In</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12 5 19 12 12 19"/>
-                </svg>
+              <button className="btn-primary" onClick={() => navigate('/auth')}>
+                Đăng nhập ngay
               </button>
             </div>
           </div>

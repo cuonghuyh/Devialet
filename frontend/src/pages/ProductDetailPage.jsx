@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { productsAPI } from '../api/products';
 import useCartStore from '../store/cartStore';
 import useAuthStore from '../store/authStore';
+import ReviewSection from '../components/ReviewSection';
 import './ProductDetailPage.css';
 
 const ProductDetailPage = () => {
@@ -15,6 +16,12 @@ const ProductDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -40,7 +47,11 @@ const ProductDetailPage = () => {
 
     const result = await addToCart(product.id, quantity);
     if (result.success) {
-      alert('Added to cart!');
+      showToast(`✓ Đã thêm ${quantity} sản phẩm vào giỏ hàng!`, 'success');
+    } else {
+      const errorMsg = result.message || 'Không thể thêm sản phẩm vào giỏ hàng';
+      showToast(`❌ ${errorMsg}`, 'error');
+      console.error('Add to cart failed:', result);
     }
   };
 
@@ -109,16 +120,17 @@ const ProductDetailPage = () => {
             {product.stock > 0 && (
               <div className="product-actions">
                 <div className="quantity-selector">
-                  <button onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}>
+                  <button type="button" onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}>
                     <span className="qty-icon">−</span>
                   </button>
                   <span>{quantity}</span>
-                  <button onClick={() => handleQuantityChange(1)} disabled={quantity >= product.stock}>
+                  <button type="button" onClick={() => handleQuantityChange(1)} disabled={quantity >= product.stock}>
                     <span className="qty-icon">+</span>
                   </button>
                 </div>
 
                 <button 
+                  type="button"
                   className="add-to-cart-button" 
                   data-tooltip={`$${product.price}`}
                   onClick={handleAddToCart}
@@ -136,6 +148,9 @@ const ProductDetailPage = () => {
             )}
           </div>
         </div>
+
+        {/* Review Section */}
+        <ReviewSection productId={id} />
       </div>
 
       {/* Login Required Modal */}
@@ -165,6 +180,13 @@ const ProductDetailPage = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`toast-notification ${toast.type}`}>
+          {toast.message}
         </div>
       )}
     </div>

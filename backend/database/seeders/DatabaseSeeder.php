@@ -15,6 +15,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Seed admin user first
+        $this->call([
+            AdminSeeder::class,
+        ]);
+        
         // Seed categories và products
         $this->call([
             CategorySeeder::class,

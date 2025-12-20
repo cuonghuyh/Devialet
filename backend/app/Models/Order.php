@@ -8,6 +8,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'orders';
+
     protected $fillable = [
         'user_id',
         'order_number',

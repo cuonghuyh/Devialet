@@ -30,10 +30,19 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
+      // Unauthorized - clear token
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      
+      // Chỉ redirect nếu không phải đang ở trang login hoặc public pages
+      const publicPaths = ['/login', '/register', '/products', '/', '/forgot-password'];
+      const currentPath = window.location.pathname;
+      
+      if (!publicPaths.some(path => currentPath.startsWith(path))) {
+        // Sử dụng soft redirect thay vì hard reload
+        // Dispatch event để app xử lý
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+      }
     }
     return Promise.reject(error);
   }

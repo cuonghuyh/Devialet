@@ -82,7 +82,7 @@ class CartController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $cart = Cart::with(['items.product'])->where('user_id', auth()->id())->first();
+        $cart = Cart::with(['items.product.category'])->where('user_id', auth()->id())->first();
 
         if (!$cart) {
             return response()->json(['items' => [], 'total' => 0, 'count' => 0]);

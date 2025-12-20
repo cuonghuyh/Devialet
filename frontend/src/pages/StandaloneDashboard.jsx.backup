@@ -1,0 +1,593 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { adminAPI } from '../api/admin';
+import { categoryAPI } from '../api/category';
+import useAuthStore from '../store/authStore';
+import { 
+  LayoutDashboard, 
+  ShoppingBag, 
+  Users, 
+  ShoppingCart,
+  TrendingUp,
+  TrendingDown,
+  Menu,
+  X,
+  Search,
+  Bell,
+  Settings,
+  User,
+  LogOut,
+  ChevronDown,
+  Calendar,
+  Mail,
+  Package,
+  DollarSign,
+  Plus,
+  Edit,
+  Trash2,
+  Upload,
+  Save,
+  Eye
+} from 'lucide-react';
+import './StandaloneDashboard.css';
+
+export default function StandaloneDashboard() {
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Products state
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [imagePreview, setImagePreview] = useState(null);
+  const [productFormData, setProductFormData] = useState({
+    name: '',
+    sku: '',
+    category_id: '',
+    price: '',
+    discount_price: '',
+    description: '',
+    stock_quantity: '',
+    image: null,
+    specifications: '',
+  });
+  
+  // Orders state
+  const [orders, setOrders] = useState([]);
+  const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [expandedOrder, setExpandedOrder] = useState(null);
+  
+  // Users state
+  const [users, setUsers] = useState([]);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  
+  // Loading state
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      navigate('/admin-login');
+      return;
+    }
+    loadCategories();
+    loadProducts();
+    loadOrders();
+    loadUsers();
+  }, [user, navigate]);
+
+  // Load functions
+  const loadCategories = async () => {
+    try {
+      const response = await categoryAPI.getAll();
+      setCategories(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      setCategories([]);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await adminAPI.getProducts({
+        search: productSearchTerm,
+        category_id: selectedCategory,
+      });
+      setProducts(Array.isArray(response.data.data) ? response.data.data : []);
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await adminAPI.getOrders({
+        search: orderSearchTerm,
+        status: selectedStatus,
+      });
+      setOrders(response.data.data);
+    } catch (error) {
+      console.error('Failed to load orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await adminAPI.getUsers({ search: userSearchTerm });
+      setUsers(response.data.data);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (activeTab === 'products') loadProducts();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [productSearchTerm, selectedCategory]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (activeTab === 'orders') loadOrders();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [orderSearchTerm, selectedStatus]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (activeTab === 'users') loadUsers();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [userSearchTerm]);
+
+  // Product handlers
+  const handleOpenProductModal = (product = null) => {
+    if (product) {
+      setEditingProduct(product);
+      setProductFormData({
+        name: product.name,
+        sku: product.sku,
+        category_id: product.category_id,
+        price: product.price,
+        discount_price: product.discount_price || '',
+        description: product.description,
+        stock_quantity: product.stock_quantity,
+        image: null,
+        specifications: product.specifications ? JSON.stringify(product.specifications) : '',
+      });
+      setImagePreview(product.image_url);
+    } else {
+      setEditingProduct(null);
+      setProductFormData({
+        name: '',
+        sku: '',
+        category_id: '',
+        price: '',
+        discount_price: '',
+        description: '',
+        stock_quantity: '',
+        image: null,
+        specifications: '',
+      });
+      setImagePreview(null);
+    }
+    setShowProductModal(true);
+  };
+
+  const handleCloseProductModal = () => {
+    setShowProductModal(false);
+    setEditingProduct(null);
+    setImagePreview(null);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProductFormData({ ...productFormData, image: file });
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleProductSubmit = async (e) => {
+    e.preventDefault();
+    const data = new FormData();
+    data.append('name', productFormData.name);
+    data.append('sku', productFormData.sku);
+    data.append('category_id', productFormData.category_id);
+    data.append('price', productFormData.price);
+    if (productFormData.discount_price) data.append('discount_price', productFormData.discount_price);
+    data.append('description', productFormData.description);
+    data.append('stock_quantity', productFormData.stock_quantity);
+    if (productFormData.image) data.append('image', productFormData.image);
+    if (productFormData.specifications) data.append('specifications', productFormData.specifications);
+
+    if (editingProduct) {
+      data.append('_method', 'PUT');
+    }
+
+    try {
+      if (editingProduct) {
+        await adminAPI.updateProduct(editingProduct.id, data);
+        alert('Cập nhật sản phẩm thành công!');
+      } else {
+        await adminAPI.createProduct(data);
+        alert('Tạo sản phẩm thành công!');
+      }
+      handleCloseProductModal();
+      loadProducts();
+    } catch (error) {
+      console.error('Failed to save product:', error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra');
+    }
+  };
+
+  const handleDeleteProduct = async (id) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return;
+    try {
+      await adminAPI.deleteProduct(id);
+      alert('Xóa sản phẩm thành công!');
+      loadProducts();
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      alert('Có lỗi xảy ra khi xóa sản phẩm');
+    }
+  };
+
+  // Order handlers
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      await adminAPI.updateOrderStatus(orderId, newStatus);
+      alert('Cập nhật trạng thái thành công!');
+      loadOrders();
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+      alert('Có lỗi xảy ra khi cập nhật trạng thái');
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/admin-login');
+  };
+
+  // Utility functions
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(amount);
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      pending: 'Chờ xử lý',
+      processing: 'Đang xử lý',
+      shipped: 'Đang giao',
+      delivered: 'Đã giao',
+      cancelled: 'Đã hủy',
+    };
+    return labels[status] || status;
+  };
+
+  return (
+    <div className="dashboard-layout">
+      {/* Sidebar */}
+      <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
+        <div className="sidebar-content">
+          <div className="sidebar-logo">
+            <div className="logo-box">D</div>
+            <span className="logo-name">Devialet</span>
+          </div>
+
+          <nav className="sidebar-menu">
+            <button 
+              className={`menu-link ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              <LayoutDashboard size={20} />
+              <span>Dashboard</span>
+            </button>
+            <button 
+              className={`menu-link ${activeTab === 'products' ? 'active' : ''}`}
+              onClick={() => setActiveTab('products')}
+            >
+              <ShoppingBag size={20} />
+              <span>Sản phẩm</span>
+            </button>
+            <button 
+              className={`menu-link ${activeTab === 'orders' ? 'active' : ''}`}
+              onClick={() => setActiveTab('orders')}
+            >
+              <ShoppingCart size={20} />
+              <span>Đơn hàng</span>
+            </button>
+            <button 
+              className={`menu-link ${activeTab === 'users' ? 'active' : ''}`}
+              onClick={() => setActiveTab('users')}
+            >
+              <Users size={20} />
+              <span>Người dùng</span>
+            </button>
+          </nav>
+        </div>
+      </aside>
+
+      {/* Overlay */}
+      {sidebarOpen && <div className="overlay" onClick={() => setSidebarOpen(false)}></div>}
+
+      {/* Main Content */}
+      <div className="main-content">
+        {/* Header */}
+        <header className="top-header">
+          <button className="mobile-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <Menu size={24} />
+          </button>
+
+          <div className="header-search">
+            <Search size={18} />
+            <input type="text" placeholder="Type to search..." />
+          </div>
+
+          <div className="header-right">
+            <button className="header-icon-btn">
+              <Bell size={20} />
+              <span className="badge">4</span>
+            </button>
+
+            <div className="profile-menu">
+              <button className="profile-btn" onClick={() => setDropdownOpen(!dropdownOpen)}>
+                <div className="avatar">A</div>
+                <div className="profile-details">
+                  <span className="profile-name">Admin User</span>
+                  <span className="profile-role">Administrator</span>
+                </div>
+                <ChevronDown size={16} />
+              </button>
+
+              {dropdownOpen && (
+                <div className="dropdown-menu">
+                  <button onClick={handleLogout} className="dropdown-item danger">
+                    <LogOut size={16} />
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Dashboard Content */}
+        <main className="content-area">
+          <div className="page-title">
+            <h1>eCommerce Dashboard</h1>
+            <p>Welcome back to your dashboard overview</p>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="stats-container">
+            <div className="stat-box">
+              <div className="stat-icon blue">
+                <Users size={28} />
+              </div>
+              <div className="stat-info">
+                <div className="stat-label">Total Customers</div>
+                <div className="stat-value">3,782</div>
+                <div className="stat-trend up">
+                  <TrendingUp size={14} />
+                  <span>11.01%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-box">
+              <div className="stat-icon green">
+                <DollarSign size={28} />
+              </div>
+              <div className="stat-info">
+                <div className="stat-label">Total Revenue</div>
+                <div className="stat-value">$45,2K</div>
+                <div className="stat-trend up">
+                  <TrendingUp size={14} />
+                  <span>4.35%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-box">
+              <div className="stat-icon orange">
+                <Package size={28} />
+              </div>
+              <div className="stat-info">
+                <div className="stat-label">Total Products</div>
+                <div className="stat-value">2,856</div>
+                <div className="stat-trend down">
+                  <TrendingDown size={14} />
+                  <span>2.59%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-box">
+              <div className="stat-icon purple">
+                <ShoppingCart size={28} />
+              </div>
+              <div className="stat-info">
+                <div className="stat-label">Total Orders</div>
+                <div className="stat-value">5,359</div>
+                <div className="stat-trend up">
+                  <TrendingUp size={14} />
+                  <span>9.05%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Row */}
+          <div className="charts-grid">
+            <div className="chart-card large">
+              <div className="card-header">
+                <div>
+                  <h3>Total Revenue</h3>
+                  <p className="card-subtitle">Monthly sales statistics</p>
+                </div>
+                <div className="chart-tabs">
+                  <button className="tab-btn active">Day</button>
+                  <button className="tab-btn">Week</button>
+                  <button className="tab-btn">Month</button>
+                </div>
+              </div>
+              <div className="chart-placeholder">
+                <div className="bar-chart">
+                  <div className="bar" style={{height: '60%'}}></div>
+                  <div className="bar" style={{height: '80%'}}></div>
+                  <div className="bar" style={{height: '45%'}}></div>
+                  <div className="bar" style={{height: '90%'}}></div>
+                  <div className="bar" style={{height: '70%'}}></div>
+                  <div className="bar" style={{height: '85%'}}></div>
+                  <div className="bar" style={{height: '55%'}}></div>
+                  <div className="bar" style={{height: '75%'}}></div>
+                  <div className="bar" style={{height: '95%'}}></div>
+                  <div className="bar" style={{height: '65%'}}></div>
+                  <div className="bar" style={{height: '88%'}}></div>
+                  <div className="bar" style={{height: '72%'}}></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="chart-card small">
+              <div className="card-header">
+                <div>
+                  <h3>Visitors Analytics</h3>
+                  <p className="card-subtitle">Total 45.5k visitors</p>
+                </div>
+              </div>
+              <div className="progress-ring">
+                <svg width="180" height="180">
+                  <circle cx="90" cy="90" r="70" fill="none" stroke="#e5e7eb" strokeWidth="12"/>
+                  <circle cx="90" cy="90" r="70" fill="none" stroke="#3b82f6" strokeWidth="12"
+                    strokeDasharray="440" strokeDashoffset="110" transform="rotate(-90 90 90)"/>
+                </svg>
+                <div className="ring-center">
+                  <div className="ring-value">75%</div>
+                  <div className="ring-label">Completion</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Orders Table */}
+          <div className="table-card">
+            <div className="card-header">
+              <div>
+                <h3>Recent Orders</h3>
+                <p className="card-subtitle">Latest customer orders</p>
+              </div>
+              <button className="btn-primary">View All</button>
+            </div>
+
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Product</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>#ORD-001</td>
+                    <td>
+                      <div className="customer-cell">
+                        <div className="customer-avatar">JD</div>
+                        <span>John Doe</span>
+                      </div>
+                    </td>
+                    <td>MacBook Pro 14"</td>
+                    <td className="amount">$2,399</td>
+                    <td><span className="status-badge success">Delivered</span></td>
+                    <td>Dec 8, 2025</td>
+                  </tr>
+                  <tr>
+                    <td>#ORD-002</td>
+                    <td>
+                      <div className="customer-cell">
+                        <div className="customer-avatar">AS</div>
+                        <span>Alice Smith</span>
+                      </div>
+                    </td>
+                    <td>iPhone 15 Pro</td>
+                    <td className="amount">$1,199</td>
+                    <td><span className="status-badge pending">Pending</span></td>
+                    <td>Dec 8, 2025</td>
+                  </tr>
+                  <tr>
+                    <td>#ORD-003</td>
+                    <td>
+                      <div className="customer-cell">
+                        <div className="customer-avatar">MB</div>
+                        <span>Michael Brown</span>
+                      </div>
+                    </td>
+                    <td>AirPods Pro</td>
+                    <td className="amount">$249</td>
+                    <td><span className="status-badge success">Delivered</span></td>
+                    <td>Dec 7, 2025</td>
+                  </tr>
+                  <tr>
+                    <td>#ORD-004</td>
+                    <td>
+                      <div className="customer-cell">
+                        <div className="customer-avatar">EJ</div>
+                        <span>Emma Johnson</span>
+                      </div>
+                    </td>
+                    <td>iPad Air</td>
+                    <td className="amount">$599</td>
+                    <td><span className="status-badge cancelled">Cancelled</span></td>
+                    <td>Dec 7, 2025</td>
+                  </tr>
+                  <tr>
+                    <td>#ORD-005</td>
+                    <td>
+                      <div className="customer-cell">
+                        <div className="customer-avatar">RW</div>
+                        <span>Robert Wilson</span>
+                      </div>
+                    </td>
+                    <td>Apple Watch Series 9</td>
+                    <td className="amount">$429</td>
+                    <td><span className="status-badge success">Delivered</span></td>
+                    <td>Dec 6, 2025</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

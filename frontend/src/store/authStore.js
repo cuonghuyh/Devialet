@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authAPI } from '../api/auth';
+import useCartStore from './cartStore';
 
 const useAuthStore = create((set) => ({
   user: JSON.parse(localStorage.getItem('user')) || null,
@@ -46,7 +47,6 @@ const useAuthStore = create((set) => ({
         return { success: true };
       }
     } catch (error) {
-      console.error('Register error:', error.response?.data); // Debug log
       const message = error.response?.data?.message || error.response?.data?.errors || 'Registration failed';
       // If errors is an object, convert to string
       const errorText = typeof message === 'object' 
@@ -61,15 +61,22 @@ const useAuthStore = create((set) => ({
     try {
       await authAPI.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      // Silent error handling
     } finally {
+      // Clear localStorage first
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      
+      // Clear cart store
+      useCartStore.getState().clearCart();
+      
+      // Update auth state
       set({
         user: null,
         token: null,
         isAuthenticated: false,
-        error: null
+        error: null,
+        loading: false
       });
     }
   },

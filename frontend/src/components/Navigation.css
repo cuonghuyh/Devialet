@@ -1,19 +1,23 @@
-/* Top Logo Nav */
+/* Top Logo Nav - Liquid Glass Style */
 nav {
   position: fixed;
   top: 0;
   width: 100%;
-  padding: 18px 50px;
+  padding: 20px 50px;
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  background: rgba(26, 26, 26, 0.85);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(188, 143, 143, 0.3);
+  /* Liquid Glass Effect */
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
   animation: slideDown 1s ease-out;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(188, 143, 143, 0.2);
-  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
 }
 
 nav.hidden {
@@ -21,17 +25,130 @@ nav.hidden {
   opacity: 0;
 }
 
-.logo {
-  font-family: 'Poppins', sans-serif;
-  font-size: 1.8rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: #D4A574;
-  text-transform: uppercase;
-  text-shadow: 0 2px 8px rgba(212, 165, 116, 0.4);
+/* Elegant fade out when scrolled */
+nav.scrolled {
+  opacity: 0;
+  transform: translateY(-30px);
+  pointer-events: none;
+  backdrop-filter: blur(30px) saturate(200%);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
 }
 
-/* Bottom Navigation Links with Liquid Glass Effect */
+/* Logo elegant fade with subtle scale */
+nav.scrolled .logo {
+  animation: logoElegantFade 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes logoElegantFade {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-8px);
+    filter: blur(3px);
+  }
+}
+
+.logo {
+  font-family: 'Inter', 'Poppins', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #1a1a1a;
+  text-transform: uppercase;
+  text-shadow: 0 2px 8px rgba(255, 255, 255, 0.5);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+/* Top Cart Button - Fixed position */
+.top-cart-btn {
+  position: absolute;
+  right: 50px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.top-cart-btn svg {
+  width: 22px;
+  height: 22px;
+  stroke: #1a1a1a;
+  transition: all 0.3s ease;
+}
+
+.top-cart-btn:hover {
+  background: rgba(212, 165, 116, 0.2);
+  border-color: rgba(212, 165, 116, 0.3);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.top-cart-btn:hover svg {
+  stroke: #D4A574;
+}
+
+.top-cart-btn.active {
+  background: rgba(212, 165, 116, 0.25);
+  border-color: rgba(212, 165, 116, 0.4);
+}
+
+.top-cart-btn.active svg {
+  stroke: #D4A574;
+}
+
+.top-cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #D4A574 0%, #BC8F8F 100%);
+  color: #0a0a0a;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(212, 165, 116, 0.5);
+  animation: badgePop 0.3s ease-out;
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Hide cart button when nav is scrolled */
+nav.scrolled .top-cart-btn {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Bottom Navigation Links - Liquid Glass Style */
 .nav-links {
   position: fixed;
   bottom: 30px;
@@ -39,22 +156,21 @@ nav.hidden {
   transform: translateX(-50%);
   width: auto;
   display: flex;
-  gap: 5px;
+  gap: 8px;
   list-style: none;
   align-items: center;
   justify-content: center;
-  background: rgba(26, 26, 26, 0.08);
-  backdrop-filter: blur(8px) saturate(180%) brightness(120%);
-  -webkit-backdrop-filter: blur(8px) saturate(180%) brightness(120%);
+  /* Liquid Glass Effect */
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.18);
-  padding: 10px 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 
-              0 0 60px rgba(212, 165, 116, 0.15),
-              inset 0 1px 0 rgba(255, 255, 255, 0.15),
-              inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  padding: 12px 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
   z-index: 1000;
   border-radius: 50px;
-  transition: all 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: all 0.3s ease;
   overflow: visible;
 }
 
@@ -67,7 +183,7 @@ nav.hidden {
   bottom: 0;
   background: radial-gradient(
     600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    rgba(212, 165, 116, 0.15),
+    rgba(37, 99, 235, 0.06),
     transparent 40%
   );
   border-radius: 50px;
@@ -90,13 +206,13 @@ nav.hidden {
   bottom: -2px;
   background: linear-gradient(
     135deg,
-    rgba(212, 165, 116, 0.3) 0%,
-    rgba(188, 143, 143, 0.2) 50%,
+    rgba(37, 99, 235, 0.1) 0%,
+    rgba(59, 130, 246, 0.05) 50%,
     transparent 100%
   );
   border-radius: 52px;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.3s ease;
   pointer-events: none;
   z-index: -2;
   filter: blur(6px);
@@ -112,117 +228,90 @@ nav.hidden {
 }
 
 .nav-links a {
-  color: rgba(243, 237, 235, 0.9);
+  color: #1a1a1a;
   text-decoration: none;
-  font-weight: 400;
-  font-size: 0.7rem;
-  letter-spacing: 0.5px;
-  transition: all 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
-  padding: 8px 12px;
-  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+  padding: 10px 16px;
+  border-radius: 24px;
   border: 1px solid transparent;
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 6px;
-  background: rgba(26, 26, 26, 0.01);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  gap: 8px;
+  background: transparent;
   white-space: nowrap;
   position: relative;
   overflow: visible;
+  min-height: 44px;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8),
+               0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+/* Dark background - White text for nav links */
+.nav-links.dark-bg a {
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
+               0 0 10px rgba(0, 0, 0, 0.4);
+}
+
+.nav-links.dark-bg a:hover {
+  color: #ffffff;
+}
+
+.nav-links.dark-bg a.active {
+  color: #1a1a1a;
 }
 
 .nav-links a::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(212, 165, 116, 0.4) 0%,
-    rgba(188, 143, 143, 0.3) 30%,
-    transparent 70%
-  );
-  transform: translate(-50%, -50%);
-  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
-              height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
-              opacity 0.4s ease;
-  opacity: 0;
-  z-index: -1;
-  filter: blur(15px);
-}
-
-.nav-links a:hover::before {
-  width: 200%;
-  height: 200%;
-  opacity: 1;
-}
-
-.nav-links a::after {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    transparent 50%,
-    rgba(0, 0, 0, 0.1) 100%
-  );
-  border-radius: 20px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-}
-
-.nav-links a:hover {
-  color: #fff;
-  background: rgba(212, 165, 116, 0.15);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
-  transform: scale(1.05) translateY(-2px);
-  box-shadow: 0 4px 20px rgba(212, 165, 116, 0.3),
-              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: scale(0.95);
+  transition: all 0.3s ease;
+  opacity: 0;
+  z-index: -1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-.nav-links a:hover::after {
+.nav-links a:hover::before {
+  transform: scale(1);
   opacity: 1;
 }
 
+.nav-links a::after {
+  content: none;
+}
+
+.nav-links a:hover {
+  color: #1a1a1a;
+  background: transparent;
+  transform: translateY(-2px);
+}
+
 .nav-links a.active {
-  color: #fff;
-  background: rgba(26, 26, 26, 0.05);
-  backdrop-filter: blur(5px) saturate(180%) brightness(120%);
-  -webkit-backdrop-filter: blur(5px) saturate(180%) brightness(120%);
-  box-shadow: 0 4px 16px rgba(212, 165, 116, 0.4), 
-              0 0 30px rgba(212, 165, 116, 0.2),
-              inset 0 1px 0 rgba(255, 255, 255, 0.3),
-              inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  color: #000000;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(15px) saturate(200%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.5),
+              inset 0 -1px 0 rgba(0, 0, 0, 0.1);
   transform: scale(1);
-  border: 1px solid rgba(212, 165, 116, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  text-shadow: none;
+  mix-blend-mode: normal;
 }
 
 .nav-links a.active::before {
-  width: 150%;
-  height: 150%;
-  opacity: 0.8;
-  animation: liquidPulse 3s ease-in-out infinite;
-}
-
-@keyframes liquidPulse {
-  0%, 100% {
-    filter: blur(15px);
-    opacity: 0.8;
-  }
-  50% {
-    filter: blur(20px);
-    opacity: 1;
-  }
+  display: none;
 }
 
 .nav-links a span {
@@ -564,4 +653,48 @@ nav .theme-toggle {
     top: -4px;
     right: -4px;
   }
+}
+
+/* Cart Nav Item with Badge */
+.cart-nav-item .cart-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.cart-nav-item .cart-badge {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: linear-gradient(135deg, #D4A574 0%, #BC8F8F 100%);
+  color: #0a0a0a;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(212, 165, 116, 0.4);
+  animation: badgePop 0.3s ease-out;
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.cart-nav-item a:hover .cart-badge {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(212, 165, 116, 0.6);
 }

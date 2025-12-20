@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
 import './SettingsPage.css';
 
 const SettingsPage = () => {
   const navigate = useNavigate();
+  const logout = useAuthStore((state) => state.logout);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
@@ -300,21 +302,8 @@ const SettingsPage = () => {
   };
 
   const handleLogout = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      await fetch('http://localhost:8000/api/logout', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        }
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      localStorage.removeItem('token');
-      navigate('/login');
-    }
+    await logout();
+    navigate('/login');
   };
 
   const showSuccess = (message) => {

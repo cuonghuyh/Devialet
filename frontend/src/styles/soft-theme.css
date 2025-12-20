@@ -1,0 +1,165 @@
+/* ===================================
+   SOFT THEME OVERRIDE - Giảm độ chói
+   =================================== */
+
+/* Nền tổng thể - Màu kem nhẹ thay vì trắng tinh */
+.homepage-new {
+  background: linear-gradient(180deg, #f5f3f0 0%, #faf8f5 100%) !important;
+}
+
+/* Hero section - Nền off-white ấm */
+.hero-content-wrapper {
+  background: #fdfcfb !important;
+  padding: 40px !important;
+  border-radius: 24px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Text màu tối hơn một chút để giảm contrast */
+.hero-title-new {
+  color: #2d2d2d !important;
+}
+
+.hero-description-new {
+  color: #757575 !important;
+}
+
+/* Buttons - Màu orange mềm hơn */
+.btn-discover-new {
+  background: linear-gradient(135deg, #e8775d 0%, #f59f87 100%) !important;
+  box-shadow: 0 4px 14px rgba(232, 119, 93, 0.25) !important;
+}
+
+.btn-discover-new:hover {
+  background: linear-gradient(135deg, #f0866f 0%, #faa999 100%) !important;
+  box-shadow: 0 6px 20px rgba(232, 119, 93, 0.35) !important;
+}
+
+.btn-video-new {
+  background: #fdfcfb !important;
+  border-color: #ebe7e0 !important;
+}
+
+.btn-video-new:hover {
+  border-color: #e8775d !important;
+  color: #e8775d !important;
+}
+
+/* Featured Product Image - Giảm blur effect */
+.featured-product-image::before {
+  background: linear-gradient(135deg, rgba(232, 119, 93, 0.1) 0%, rgba(232, 119, 93, 0.03) 100%) !important;
+}
+
+/* Stats Cards - Nền ấm và shadow nhẹ */
+.stat-item {
+  background: #fdfcfb !important;
+  border: 1px solid #f5f0eb !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03) !important;
+}
+
+.stat-item:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06) !important;
+}
+
+.stat-icon {
+  background: linear-gradient(135deg, #e8775d 0%, #f59f87 100%) !important;
+  box-shadow: 0 4px 12px rgba(232, 119, 93, 0.18) !important;
+}
+
+.stat-value {
+  color: #2d2d2d !important;
+}
+
+.stat-label {
+  color: #757575 !important;
+}
+
+/* Filter Section - Nền ấm */
+.filter-section-new {
+  background: #fdfcfb !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.03) !important;
+}
+
+.filter-section-new h3 {
+  color: #2d2d2d !important;
+}
+
+.filter-select {
+  background: #fdfcfb !important;
+  border-color: #ebe7e0 !important;
+  color: #4a4a4a !important;
+}
+
+.filter-select:hover {
+  border-color: #e8775d !important;
+  box-shadow: 0 2px 8px rgba(232, 119, 93, 0.12) !important;
+}
+
+.filter-select:focus {
+  border-color: #e8775d !important;
+  box-shadow: 0 0 0 4px rgba(232, 119, 93, 0.08) !important;
+}
+
+.btn-search-filter {
+  background: linear-gradient(135deg, #e8775d 0%, #f59f87 100%) !important;
+  box-shadow: 0 4px 12px rgba(232, 119, 93, 0.2) !important;
+}
+
+.btn-search-filter:hover {
+  background: linear-gradient(135deg, #f0866f 0%, #faa999 100%) !important;
+  box-shadow: 0 6px 20px rgba(232, 119, 93, 0.3) !important;
+}
+
+/* Section Titles */
+.recently-added-new h2 {
+  color: #2d2d2d !important;
+}
+
+/* Product Cards - Nền ấm và shadow nhẹ */
+.product-card-new-home {
+  background: #fdfcfb !important;
+  border: 1px solid #f5f0eb !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.03) !important;
+}
+
+.product-card-new-home:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06) !important;
+  border-color: #e8775d !important;
+}
+
+.product-image-container-new {
+  background: linear-gradient(135deg, #f5f3f0 0%, #f0ede8 100%) !important;
+}
+
+.product-title-new-home {
+  color: #2d2d2d !important;
+}
+
+.product-description-new-home {
+  color: #757575 !important;
+}
+
+.product-price-new-home {
+  color: #e8775d !important;
+}
+
+.btn-view-details-new {
+  background: linear-gradient(135deg, #e8775d 0%, #f59f87 100%) !important;
+  box-shadow: 0 4px 12px rgba(232, 119, 93, 0.18) !important;
+}
+
+.btn-view-details-new:hover {
+  background: linear-gradient(135deg, #f0866f 0%, #faa999 100%) !important;
+  box-shadow: 0 6px 20px rgba(232, 119, 93, 0.28) !important;
+}
+
+/* Category badge */
+.product-category-new-home {
+  background: rgba(232, 119, 93, 0.1) !important;
+  color: #e8775d !important;
+}
+
+/* Stock badge */
+.product-stock-new-home {
+  background: rgba(79, 70, 229, 0.1) !important;
+}

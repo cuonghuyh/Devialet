@@ -1,5 +1,12 @@
 {
   "dependencies": {
-    "liquid-glass-react": "^1.1.1"
+    "@number-flow/react": "^0.5.10",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@react-oauth/google": "^0.12.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.25",
+    "liquid-glass-react": "^1.1.1",
+    "tailwind-merge": "^3.4.0"
   }
 }

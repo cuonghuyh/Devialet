@@ -225,6 +225,133 @@
   font-size: 0.75rem;
 }
 
+/* Payment icon styles */
+.payment-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.payment-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.payment-option:hover .payment-icon::before {
+  opacity: 0.2;
+}
+
+/* MoMo payment icon */
+.payment-icon.momo {
+  background: linear-gradient(135deg, #d91d6a 0%, #a8165d 100%);
+  box-shadow: 0 4px 16px rgba(217, 29, 106, 0.3);
+}
+
+.payment-icon.momo circle {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 3;
+  fill: none;
+}
+
+.payment-icon.momo text {
+  fill: #ffffff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 24px;
+}
+
+.payment-option:hover .payment-icon.momo {
+  transform: scale(1.05);
+  box-shadow: 0 6px 24px rgba(217, 29, 106, 0.5);
+}
+
+/* VietQR payment icon */
+.payment-icon.vietqr {
+  background: linear-gradient(135deg, #0066FF 0%, #0047B3 100%);
+  box-shadow: 0 4px 16px rgba(0, 102, 255, 0.3);
+}
+
+.payment-icon.vietqr rect {
+  fill: rgba(255, 255, 255, 0.9);
+}
+
+.payment-option:hover .payment-icon.vietqr {
+  transform: scale(1.05);
+  box-shadow: 0 6px 24px rgba(0, 102, 255, 0.5);
+}
+
+/* Payment instructions */
+.payment-instruction {
+  margin-top: 12px;
+  padding: 16px;
+  background: rgba(212, 165, 116, 0.08);
+  border: 1px solid rgba(212, 165, 116, 0.25);
+  border-radius: 12px;
+  border-left: 4px solid var(--color-gold);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.payment-instruction p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-light);
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.payment-instruction svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--color-gold);
+  flex-shrink: 0;
+}
+
+.payment-instruction ol {
+  margin: 0;
+  padding-left: 20px;
+  color: rgba(243, 237, 235, 0.85);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.payment-instruction li {
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.payment-instruction li:last-child {
+  margin-bottom: 0;
+}
+
+.payment-instruction li::marker {
+  color: var(--color-gold);
+  font-weight: 600;
+}
+
 .order-summary {
   background: rgba(243, 237, 235, 0.05);
   border: 1px solid rgba(188, 143, 143, 0.3);

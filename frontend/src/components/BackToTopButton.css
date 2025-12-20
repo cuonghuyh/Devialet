@@ -2,73 +2,122 @@
   position: fixed;
   bottom: 40px;
   right: 40px;
-  z-index: 1000;
+  z-index: 999;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(20px);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(30px) scale(0.8);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .back-to-top-wrapper.visible {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 
 .back-to-top-button {
-  width: 50px;
-  height: 50px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background-color: rgb(20, 20, 20);
-  border: none;
+  /* Glass morphism effect - more visible */
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0px 0px 0px 4px rgba(212, 165, 116, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.5),
+              0 0 0 1px rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  transition-duration: 0.3s;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   position: relative;
 }
 
+.back-to-top-button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.back-to-top-button:hover::after {
+  width: 200%;
+  height: 200%;
+}
+
 .svgIcon {
-  width: 12px;
-  transition-duration: 0.3s;
+  width: 26px;
+  height: 26px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 2;
 }
 
 .svgIcon path {
-  fill: white;
+  fill: #1a1a1a;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 1)) 
+          drop-shadow(0 1px 3px rgba(255, 255, 255, 0.8))
+          drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
 }
 
 .back-to-top-button:hover {
-  width: 140px;
-  border-radius: 50px;
-  transition-duration: 0.3s;
-  background: linear-gradient(135deg, rgba(212, 165, 116, 0.9) 0%, rgba(188, 143, 143, 0.9) 100%);
-  align-items: center;
+  width: 160px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  gap: 10px;
+  padding: 0 20px;
+  justify-content: flex-start;
+}
+
+.back-to-top-button:active {
+  transform: translateY(-2px) scale(0.98);
 }
 
 .back-to-top-button:hover .svgIcon {
-  transition-duration: 0.3s;
-  transform: translateY(-200%);
+  transform: scale(1.1);
+  animation: bounce 1s ease-in-out infinite;
+  margin-left: 0;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: scale(1.1) translateY(0);
+  }
+  50% {
+    transform: scale(1.1) translateY(-4px);
+  }
 }
 
 .back-to-top-button::before {
-  position: absolute;
-  bottom: -20px;
+  position: relative;
   content: "Back to Top";
-  color: white;
-  font-size: 0px;
+  color: rgba(0, 0, 0, 0.85);
+  font-size: 0;
   white-space: nowrap;
   font-weight: 600;
+  letter-spacing: 0.5px;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 .back-to-top-button:hover::before {
   font-size: 13px;
   opacity: 1;
-  bottom: unset;
-  transition-duration: 0.3s;
 }
 
 /* Animation khi xuất hiện */

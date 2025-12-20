@@ -11,18 +11,19 @@ class Product extends Model
         'slug',
         'category_id',
         'price',
+        'sale_price',
         'description',
-        'details',
-        'image',
-        'image_url',
-        'cloudinary_public_id',
         'stock',
-        'featured',
+        'sku',
+        'images',
+        'is_active',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
-        'featured' => 'boolean',
+        'sale_price' => 'decimal:2',
+        'is_active' => 'boolean',
+        'images' => 'array',
     ];
 
     /**
@@ -32,4 +33,53 @@ class Product extends Model
     {
         return $this->belongsTo(Category::class);
     }
+
+    /**
+     * Quan hệ với reviews
+     */
+    public function reviews()
+    {
+        return $this->hasMany(ProductReview::class);
+    }
+
+    /**
+     * Tính rating trung bình
+     */
+    public function averageRating()
+    {
+        return $this->reviews()->avg('rating');
+    }
+
+    /**
+     * Đếm số lượng reviews
+     */
+    public function reviewsCount()
+    {
+        return $this->reviews()->count();
+    }
+
+    /**
+     * Get main image URL
+     */
+    public function getImageAttribute()
+    {
+        // Return first image from images array, or image_url if exists
+        if (!empty($this->images) && is_array($this->images)) {
+            return $this->images[0];
+        }
+        return $this->attributes['image_url'] ?? null;
+    }
+
+    /**
+     * Get image_url for backward compatibility
+     */
+    public function getImageUrlAttribute()
+    {
+        return $this->image;
+    }
+
+    /**
+     * Append image and image_url to JSON
+     */
+    protected $appends = ['image', 'image_url'];
 }
