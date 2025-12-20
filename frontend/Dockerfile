@@ -1,10 +1,20 @@
 ### Build stage
-FROM node:20-alpine AS builder
+FROM php:8.2-fpm
+
+RUN apt-get update && apt-get install -y \
+    zip unzip git curl libpng-dev libonig-dev libxml2-dev \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+
 WORKDIR /app
-COPY package.json package-lock.json* ./
+
 COPY . .
-RUN npm ci --silent
-RUN npm run build
+
+RUN curl -sS https://getcomposer.org/installer | php \
+    && mv composer.phar /usr/local/bin/composer
+
+RUN composer install --no-dev --optimize-autoloader
+
+CMD ["php-fpm"]
 
 ### Production stage: serve with nginx
 FROM nginx:stable-alpine
