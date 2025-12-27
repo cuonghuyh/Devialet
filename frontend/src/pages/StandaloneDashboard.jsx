@@ -26,7 +26,9 @@ import {
   Phone,
   Calendar,
   Star,
-  MessageSquare
+  MessageSquare,
+  Home,
+  ArrowLeft
 } from 'lucide-react';
 import { adminAPI } from '../api/admin';
 import { categoryAPI } from '../api/category';
@@ -39,6 +41,17 @@ function StandaloneDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState({
+    orders: [],
+    reviews: [],
+    users: []
+  });
+  const [lastChecked, setLastChecked] = useState({
+    orders: Date.now(),
+    reviews: Date.now(),
+    users: Date.now()
+  });
 
   // Products state
   const [products, setProducts] = useState([]);
@@ -65,21 +78,72 @@ function StandaloneDashboard() {
 
   const [loading, setLoading] = useState(true);
 
-  // Load categories on mount
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showNotifications && !event.target.closest('.header-icon-btn') && !event.target.closest('.notifications-dropdown')) {
+        setShowNotifications(false);
+      }
+      if (showProfileMenu && !event.target.closest('.profile-menu')) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNotifications, showProfileMenu]);
+
+  // Check admin role only on mount
+  useEffect(() => {
+    // Check if user is admin on initial load
+    if (!user || user.role !== 'admin') {
+      navigate('/');
+      return;
+    }
+  }, [user, navigate]);
+
+  // Load categories and notifications on mount
   useEffect(() => {
     loadCategories();
-  }, []);
+    loadNotifications();
+    
+    // Check for new notifications every 15 seconds
+    const interval = setInterval(() => {
+      // Verify still admin before making API calls
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser || currentUser.role !== 'admin') {
+        clearInterval(interval);
+        navigate('/');
+        return;
+      }
+      
+      loadNotifications();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [navigate]);
 
   useEffect(() => {
-    if (activeTab === 'products') {
-      loadProducts();
-    } else if (activeTab === 'orders') {
-      loadOrders();
-    } else if (activeTab === 'users') {
-      loadUsers();
-    } else if (activeTab === 'reviews') {
-      loadReviews();
-    }
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        if (activeTab === 'dashboard') {
+          // Load all data for dashboard statistics
+          await Promise.all([loadProducts(), loadOrders(), loadUsers()]);
+        } else if (activeTab === 'products') {
+          await loadProducts();
+        } else if (activeTab === 'orders') {
+          await loadOrders();
+        } else if (activeTab === 'users') {
+          await loadUsers();
+        } else if (activeTab === 'reviews') {
+          await loadReviews();
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
   }, [activeTab]);
 
   const loadProducts = async () => {
@@ -113,44 +177,145 @@ function StandaloneDashboard() {
 
   const loadOrders = async () => {
     try {
-      setLoading(true);
       const response = await adminAPI.getOrders();
       const data = response.data?.data || response.data || [];
       setOrders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load orders:', error);
       setOrders([]);
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadUsers = async () => {
     try {
-      setLoading(true);
       const response = await adminAPI.getUsers();
       const data = response.data?.data || response.data || [];
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load users:', error);
       setUsers([]);
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadReviews = async () => {
     try {
-      setLoading(true);
       const response = await adminAPI.getReviews();
       const data = response.data?.data || response.data || [];
       setReviews(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load reviews:', error);
       setReviews([]);
-    } finally {
-      setLoading(false);
     }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      const [ordersRes, reviewsRes, usersRes] = await Promise.all([
+        adminAPI.getOrders(),
+        adminAPI.getReviews(),
+        adminAPI.getUsers()
+      ]);
+
+      const ordersData = ordersRes.data?.data || ordersRes.data || [];
+      const reviewsData = reviewsRes.data?.data || reviewsRes.data || [];
+      const usersData = usersRes.data?.data || usersRes.data || [];
+
+      // Filter new items based on last checked time
+      const newOrders = ordersData.filter(order => 
+        new Date(order.created_at).getTime() > lastChecked.orders
+      );
+      const newReviews = reviewsData.filter(review => 
+        new Date(review.created_at).getTime() > lastChecked.reviews
+      );
+      const newUsers = usersData.filter(user => 
+        new Date(user.created_at).getTime() > lastChecked.users
+      );
+
+      setNotifications({
+        orders: newOrders,
+        reviews: newReviews,
+        users: newUsers
+      });
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      // If unauthorized, redirect to home
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        navigate('/');
+      }
+    }
+  };
+
+  const getTotalNotifications = () => {
+    return notifications.orders.length + notifications.reviews.length + notifications.users.length;
+  };
+
+  const markNotificationAsRead = (type) => {
+    setLastChecked(prev => ({
+      ...prev,
+      [type]: Date.now()
+    }));
+    setNotifications(prev => ({
+      ...prev,
+      [type]: []
+    }));
+  };
+
+  // Calculate dashboard statistics
+  const getTotalRevenue = () => {
+    return orders.reduce((sum, order) => {
+      // Only count delivered and processing orders
+      if (order.status === 'delivered' || order.status === 'processing' || order.status === 'shipped') {
+        return sum + parseFloat(order.total || 0);
+      }
+      return sum;
+    }, 0);
+  };
+
+  const getTotalOrders = () => {
+    return orders.length;
+  };
+
+  const getTotalProducts = () => {
+    return products.length;
+  };
+
+  const getTotalCustomers = () => {
+    return users.length;
+  };
+
+  const clearNotifications = (type) => {
+    if (type === 'all') {
+      setNotifications({
+        orders: [],
+        reviews: [],
+        users: []
+      });
+      setLastChecked({
+        orders: Date.now(),
+        reviews: Date.now(),
+        users: Date.now()
+      });
+    } else {
+      setNotifications(prev => ({
+        ...prev,
+        [type]: []
+      }));
+      setLastChecked(prev => ({
+        ...prev,
+        [type]: Date.now()
+      }));
+    }
+  };
+
+  const getPaymentMethodText = (method) => {
+    const texts = {
+      cod: 'Tiền mặt',
+      momo: 'MoMo',
+      vietqr: 'VietQR',
+      bank_transfer: 'Chuyển khoản',
+      credit_card: 'Thẻ tín dụng',
+    };
+    return texts[method] || method;
   };
 
   const handleDeleteReview = async (reviewId) => {
@@ -162,6 +327,34 @@ function StandaloneDashboard() {
         console.error('Failed to delete review:', error);
         alert('Không thể xóa đánh giá');
       }
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    if (window.confirm('Bạn có chắc muốn xóa đơn hàng này? Hành động này sẽ hoàn lại số lượng sản phẩm vào kho.')) {
+      try {
+        await adminAPI.deleteOrder(orderId);
+        setOrders(orders.filter(o => o.id !== orderId));
+        // Reload notifications to update counts
+        loadNotifications();
+      } catch (error) {
+        console.error('Failed to delete order:', error);
+        alert('Không thể xóa đơn hàng');
+      }
+    }
+  };
+
+  const handleOrderStatusChange = async (orderId, newStatus) => {
+    try {
+      await adminAPI.updateOrderStatus(orderId, newStatus);
+      setOrders(orders.map(order => 
+        order.id === orderId ? { ...order, status: newStatus } : order
+      ));
+      // Reload notifications to update counts
+      loadNotifications();
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+      alert('Không thể cập nhật trạng thái đơn hàng');
     }
   };
 
@@ -285,26 +478,26 @@ function StandaloneDashboard() {
   };
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false;
     const matchesCategory = selectedCategory === 'all' || product.category_id === parseInt(selectedCategory);
     return matchesSearch && matchesCategory;
   });
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.id.toString().includes(orderSearchTerm) || 
-                          order.user?.name?.toLowerCase().includes(orderSearchTerm.toLowerCase());
+    const matchesSearch = order.id?.toString().includes(orderSearchTerm) || 
+                          (order.user?.name?.toLowerCase().includes(orderSearchTerm.toLowerCase()) ?? false);
     const matchesStatus = orderStatusFilter === 'all' || order.status === orderStatusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(userSearchTerm.toLowerCase())
+    (user.name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ?? false) ||
+    (user.email?.toLowerCase().includes(userSearchTerm.toLowerCase()) ?? false)
   );
 
   const filteredReviews = reviews.filter(review =>
-    review.product?.name?.toLowerCase().includes(reviewSearchTerm.toLowerCase()) ||
-    review.user?.name?.toLowerCase().includes(reviewSearchTerm.toLowerCase())
+    (review.product?.name?.toLowerCase().includes(reviewSearchTerm.toLowerCase()) ?? false) ||
+    (review.user?.name?.toLowerCase().includes(reviewSearchTerm.toLowerCase()) ?? false)
   );
 
   return (
@@ -377,10 +570,148 @@ function StandaloneDashboard() {
           </div>
 
           <div className="header-right">
-            <button className="header-icon-btn">
+            <button 
+              className="header-icon-btn"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
               <Bell size={20} />
-              <span className="badge">3</span>
+              {getTotalNotifications() > 0 && (
+                <span className="badge">{getTotalNotifications()}</span>
+              )}
             </button>
+
+            {showNotifications && (
+              <div className="notifications-dropdown">
+                <div className="notifications-header">
+                  <h3>Thông báo</h3>
+                  {getTotalNotifications() > 0 && (
+                    <button 
+                      className="clear-all-btn"
+                      onClick={() => clearNotifications('all')}
+                    >
+                      Xóa tất cả
+                    </button>
+                  )}
+                </div>
+
+                <div className="notifications-content">
+                  <div className="notification-column">
+                    <div className="notification-column-header">
+                      <ShoppingCart size={16} />
+                      <span>Đơn hàng mới ({notifications.orders.length})</span>
+                      {notifications.orders.length > 0 && (
+                        <button 
+                          className="clear-btn"
+                          onClick={() => clearNotifications('orders')}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="notification-items">
+                      {notifications.orders.length === 0 ? (
+                        <p className="no-notifications">Không có đơn hàng mới</p>
+                      ) : (
+                        notifications.orders.map(order => (
+                          <div 
+                            key={order.id} 
+                            className="notification-item"
+                            onClick={() => {
+                              setActiveTab('orders');
+                              setShowNotifications(false);
+                            }}
+                          >
+                            <p className="notification-title">Đơn hàng #{order.id}</p>
+                            <p className="notification-desc">
+                              {order.customer_name} - {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.total || 0)}
+                            </p>
+                            <p className="notification-time">
+                              {new Date(order.created_at).toLocaleString('vi-VN')}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="notification-column">
+                    <div className="notification-column-header">
+                      <Star size={16} />
+                      <span>Đánh giá mới ({notifications.reviews.length})</span>
+                      {notifications.reviews.length > 0 && (
+                        <button 
+                          className="clear-btn"
+                          onClick={() => clearNotifications('reviews')}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="notification-items">
+                      {notifications.reviews.length === 0 ? (
+                        <p className="no-notifications">Không có đánh giá mới</p>
+                      ) : (
+                        notifications.reviews.map(review => (
+                          <div 
+                            key={review.id} 
+                            className="notification-item"
+                            onClick={() => {
+                              setActiveTab('reviews');
+                              setShowNotifications(false);
+                            }}
+                          >
+                            <p className="notification-title">{review.product?.name}</p>
+                            <p className="notification-desc">
+                              {review.user?.name} - {review.rating} ⭐
+                            </p>
+                            <p className="notification-time">
+                              {new Date(review.created_at).toLocaleString('vi-VN')}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="notification-column">
+                    <div className="notification-column-header">
+                      <UserCheck size={16} />
+                      <span>Người dùng mới ({notifications.users.length})</span>
+                      {notifications.users.length > 0 && (
+                        <button 
+                          className="clear-btn"
+                          onClick={() => clearNotifications('users')}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="notification-items">
+                      {notifications.users.length === 0 ? (
+                        <p className="no-notifications">Không có người dùng mới</p>
+                      ) : (
+                        notifications.users.map(user => (
+                          <div 
+                            key={user.id} 
+                            className="notification-item"
+                            onClick={() => {
+                              setActiveTab('users');
+                              setShowNotifications(false);
+                            }}
+                          >
+                            <p className="notification-title">{user.name}</p>
+                            <p className="notification-desc">{user.email}</p>
+                            <p className="notification-time">
+                              {new Date(user.created_at).toLocaleString('vi-VN')}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button className="header-icon-btn">
               <Settings size={20} />
@@ -400,6 +731,14 @@ function StandaloneDashboard() {
 
               {showProfileMenu && (
                 <div className="dropdown-menu">
+                  <button className="dropdown-item" onClick={() => navigate('/')}>
+                    <Home size={16} />
+                    <span>Về trang chủ</span>
+                  </button>
+                  <button className="dropdown-item" onClick={() => navigate('/products')}>
+                    <ShoppingBag size={16} />
+                    <span>Xem cửa hàng</span>
+                  </button>
                   <button className="dropdown-item danger" onClick={handleLogout}>
                     <LogOut size={16} />
                     <span>Đăng xuất</span>
@@ -426,8 +765,10 @@ function StandaloneDashboard() {
                   </div>
                   <div className="stat-info">
                     <div className="stat-label">Doanh thu</div>
-                    <div className="stat-value">$45,231</div>
-                    <div className="stat-trend up">
+                    <div className="stat-value">
+                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(getTotalRevenue())}
+                    </div>
+                    <div className="stat-trend up" style={{ visibility: 'hidden' }}>
                       <TrendingUp size={14} />
                       <span>+12.5%</span>
                     </div>
@@ -440,8 +781,8 @@ function StandaloneDashboard() {
                   </div>
                   <div className="stat-info">
                     <div className="stat-label">Đơn hàng</div>
-                    <div className="stat-value">1,234</div>
-                    <div className="stat-trend up">
+                    <div className="stat-value">{getTotalOrders()}</div>
+                    <div className="stat-trend up" style={{ visibility: 'hidden' }}>
                       <TrendingUp size={14} />
                       <span>+8.2%</span>
                     </div>
@@ -454,8 +795,8 @@ function StandaloneDashboard() {
                   </div>
                   <div className="stat-info">
                     <div className="stat-label">Sản phẩm</div>
-                    <div className="stat-value">{products.length}</div>
-                    <div className="stat-trend up">
+                    <div className="stat-value">{getTotalProducts()}</div>
+                    <div className="stat-trend up" style={{ visibility: 'hidden' }}>
                       <TrendingUp size={14} />
                       <span>+5.1%</span>
                     </div>
@@ -468,8 +809,8 @@ function StandaloneDashboard() {
                   </div>
                   <div className="stat-info">
                     <div className="stat-label">Khách hàng</div>
-                    <div className="stat-value">{users.length}</div>
-                    <div className="stat-trend up">
+                    <div className="stat-value">{getTotalCustomers()}</div>
+                    <div className="stat-trend up" style={{ visibility: 'hidden' }}>
                       <TrendingUp size={14} />
                       <span>+3.2%</span>
                     </div>
@@ -534,9 +875,9 @@ function StandaloneDashboard() {
                           <td>{product.sku}</td>
                           <td>
                             <div className="price-cell">
-                              <span className="current-price">${product.price}</span>
+                              <span className="current-price">{new Intl.NumberFormat('vi-VN').format(product.price)} ₫</span>
                               {product.discount_price && (
-                                <span className="discount-price">${product.discount_price}</span>
+                                <span className="discount-price">{new Intl.NumberFormat('vi-VN').format(product.discount_price)} ₫</span>
                               )}
                             </div>
                           </td>
@@ -604,7 +945,8 @@ function StandaloneDashboard() {
                           <p className="order-date">{new Date(order.created_at).toLocaleDateString('vi-VN')}</p>
                         </div>
                         <div className="order-summary">
-                          <span className="order-total">${order.total_amount}</span>
+                          <span className="payment-method-badge">{getPaymentMethodText(order.payment_method)}</span>
+                          <span className="order-total">{new Intl.NumberFormat('vi-VN').format(order.total || 0)} ₫</span>
                           <span className={`status-badge ${order.status}`}>{order.status}</span>
                           <ChevronDown className={`expand-icon ${expandedOrderId === order.id ? 'expanded' : ''}`} />
                         </div>
@@ -643,8 +985,8 @@ function StandaloneDashboard() {
                                     <td><img src={item.product?.image} className="item-thumb" /></td>
                                     <td>{item.product?.name}</td>
                                     <td>{item.quantity}</td>
-                                    <td>${item.price}</td>
-                                    <td>${(item.quantity * item.price).toFixed(2)}</td>
+                                    <td>{new Intl.NumberFormat('vi-VN').format(item.price)} ₫</td>
+                                    <td>{new Intl.NumberFormat('vi-VN').format(item.quantity * item.price)} ₫</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -654,27 +996,38 @@ function StandaloneDashboard() {
                           <div className="order-totals">
                             <div className="total-row">
                               <span>Tạm tính:</span>
-                              <span>${order.subtotal}</span>
+                              <span>{new Intl.NumberFormat('vi-VN').format(order.subtotal || 0)} ₫</span>
                             </div>
                             <div className="total-row">
                               <span>Phí vận chuyển:</span>
-                              <span>${order.shipping_fee || 0}</span>
+                              <span>{new Intl.NumberFormat('vi-VN').format(order.shipping_fee || 0)} ₫</span>
                             </div>
                             <div className="total-row grand-total">
                               <span>Tổng cộng:</span>
-                              <span>${order.total_amount}</span>
+                              <span>{new Intl.NumberFormat('vi-VN').format(order.total || 0)} ₫</span>
                             </div>
                           </div>
 
                           <div className="order-actions">
                             <label>Trạng thái:</label>
-                            <select value={order.status}>
+                            <select 
+                              value={order.status}
+                              onChange={(e) => handleOrderStatusChange(order.id, e.target.value)}
+                            >
                               <option value="pending">Chờ xử lý</option>
                               <option value="processing">Đang xử lý</option>
                               <option value="shipped">Đã gửi</option>
                               <option value="delivered">Đã giao</option>
                               <option value="cancelled">Đã hủy</option>
                             </select>
+                            <button 
+                              className="delete-order-btn"
+                              onClick={() => handleDeleteOrder(order.id)}
+                              title="Xóa đơn hàng"
+                            >
+                              <Trash2 size={18} />
+                              Xóa đơn hàng
+                            </button>
                           </div>
                         </div>
                       )}
@@ -711,15 +1064,15 @@ function StandaloneDashboard() {
                     <div key={user.id} className="user-card">
                       <div className="user-avatar">
                         {user.avatar ? (
-                          <img src={user.avatar} alt={user.name} />
+                          <img src={user.avatar} alt={user.name || 'User'} />
                         ) : (
                           <div className="avatar-placeholder">
-                            {user.name.charAt(0).toUpperCase()}
+                            {(user.name || user.email || 'U').charAt(0).toUpperCase()}
                           </div>
                         )}
                       </div>
                       <div className="user-info">
-                        <h3>{user.name}</h3>
+                        <h3>{user.name || user.email}</h3>
                         <div className="user-detail">
                           <Mail size={16} />
                           <span>{user.email}</span>
@@ -803,6 +1156,7 @@ function StandaloneDashboard() {
                           </div>
                           <div>
                             <p className="review-user-name">{review.user?.name}</p>
+                            <p className="review-user-email">{review.user?.email}</p>
                             <p className="review-date">
                               {new Date(review.created_at).toLocaleDateString('vi-VN')}
                             </p>

@@ -5,9 +5,17 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Services\CloudinaryService;
 
 class SettingsController extends Controller
 {
+    protected $cloudinaryService;
+
+    public function __construct(CloudinaryService $cloudinaryService)
+    {
+        $this->cloudinaryService = $cloudinaryService;
+    }
+
     /**
      * Update user profile information
      */
@@ -65,20 +73,35 @@ class SettingsController extends Controller
         try {
             $user = $request->user();
 
-            // Delete old avatar if exists
-            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-                Storage::disk('public')->delete($user->avatar);
+            // Delete old avatar from Cloudinary if exists
+            if ($user->avatar) {
+                // Extract public_id from URL
+                $parts = explode('/', $user->avatar);
+                $filename = end($parts);
+                $publicId = 'avatars/' . pathinfo($filename, PATHINFO_FILENAME);
+                try {
+                    $this->cloudinaryService->destroy($publicId);
+                } catch (\Exception $e) {
+                    // Ignore if delete fails
+                }
             }
 
-            // Store new avatar
-            $path = $request->file('avatar')->store('avatars', 'public');
-            $user->avatar = $path;
+            // Upload to Cloudinary
+            $file = $request->file('avatar');
+            $tempPath = $file->getRealPath();
+            
+            $uploadResult = $this->cloudinaryService->upload($tempPath, [
+                'folder' => 'avatars'
+            ]);
+
+            // Save Cloudinary URL to database
+            $user->avatar = $uploadResult['secure_url'];
             $user->save();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Avatar uploaded successfully',
-                'avatar_url' => Storage::url($path)
+                'avatar_url' => $uploadResult['secure_url']
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -96,8 +119,17 @@ class SettingsController extends Controller
         try {
             $user = $request->user();
 
-            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-                Storage::disk('public')->delete($user->avatar);
+            // Delete from Cloudinary if exists
+            if ($user->avatar) {
+                // Extract public_id from URL
+                $parts = explode('/', $user->avatar);
+                $filename = end($parts);
+                $publicId = 'avatars/' . pathinfo($filename, PATHINFO_FILENAME);
+                try {
+                    $this->cloudinaryService->destroy($publicId);
+                } catch (\Exception $e) {
+                    // Ignore if delete fails
+                }
             }
 
             $user->avatar = null;

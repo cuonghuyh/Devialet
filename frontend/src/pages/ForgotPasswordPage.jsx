@@ -167,7 +167,7 @@ const ForgotPasswordPage = () => {
       if (data.success) {
         setSuccess('Password reset successfully! Redirecting to login...');
         setTimeout(() => {
-          navigate('/login');
+          navigate('/auth');
         }, 2000);
       } else {
         setError(data.message || 'Failed to reset password');
@@ -182,7 +182,7 @@ const ForgotPasswordPage = () => {
   const handleBack = () => {
     if (step === 2) {
       setStep(1);
-      setOtp('');
+      setOtp(['', '', '', '', '', '']);
     } else if (step === 3) {
       setStep(2);
       setPassword('');
@@ -246,7 +246,7 @@ const ForgotPasswordPage = () => {
               </button>
 
               <div className="form-footer">
-                <Link to="/login">Back to Login</Link>
+                <Link to="/auth">Back to Login</Link>
               </div>
             </form>
           )}

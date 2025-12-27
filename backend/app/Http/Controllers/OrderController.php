@@ -22,35 +22,60 @@ class OrderController extends Controller
             'customer_phone' => 'required|string|max:20',
             'customer_address' => 'required|string',
             'customer_email' => 'nullable|email|max:255',
-            'payment_method' => 'required|in:cod,bank_transfer,credit_card',
+            'payment_method' => 'required|in:cod,bank_transfer,credit_card,momo,vietqr',
             'note' => 'nullable|string',
+            'cart_items' => 'required|array|min:1',
+            'cart_items.*.productId' => 'required|integer|exists:products,id',
+            'cart_items.*.quantity' => 'required|integer|min:1',
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Get user's cart
-            $cart = Cart::with('items.product')->where('user_id', auth()->id())->first();
-
-            if (!$cart || $cart->items->count() === 0) {
+            // Get cart items from request (stored in localStorage on frontend)
+            $cartItems = $validated['cart_items'];
+            
+            if (empty($cartItems)) {
                 return response()->json(['error' => 'Cart is empty'], 400);
             }
 
-            // Check stock for all items
-            foreach ($cart->items as $item) {
-                if ($item->product->stock < $item->quantity) {
+            // Fetch products and validate stock
+            $orderItems = [];
+            $subtotal = 0;
+            
+            foreach ($cartItems as $cartItem) {
+                $product = Product::find($cartItem['productId']);
+                
+                if (!$product) {
                     return response()->json([
-                        'error' => "Product {$item->product->name} is out of stock"
+                        'error' => "Product not found"
                     ], 400);
                 }
+                
+                if ($product->stock < $cartItem['quantity']) {
+                    return response()->json([
+                        'error' => "Product {$product->name} is out of stock. Available: {$product->stock}"
+                    ], 400);
+                }
+                
+                $price = $product->discount_price ?? $product->price;
+                $itemSubtotal = $price * $cartItem['quantity'];
+                $subtotal += $itemSubtotal;
+                
+                $orderItems[] = [
+                    'product' => $product,
+                    'price' => $price,
+                    'quantity' => $cartItem['quantity'],
+                    'subtotal' => $itemSubtotal,
+                ];
             }
 
-            // Calculate totals
-            $subtotal = $cart->items->sum(function ($item) {
-                return $item->price * $item->quantity;
-            });
             $shipping_fee = 0; // Free shipping
             $total = $subtotal + $shipping_fee;
+            
+            // Determine payment status based on payment method
+            // VietQR and MoMo are considered paid immediately (user confirms payment)
+            $paymentStatus = in_array($validated['payment_method'], ['vietqr', 'momo']) ? 'paid' : 'unpaid';
 
             // Create order
             $order = Order::create([
@@ -65,36 +90,35 @@ class OrderController extends Controller
                 'total' => $total,
                 'payment_method' => $validated['payment_method'],
                 'status' => 'pending',
-                'payment_status' => $validated['payment_method'] === 'cod' ? 'unpaid' : 'unpaid',
+                'payment_status' => $paymentStatus,
                 'note' => $validated['note'] ?? null,
             ]);
 
             // Create order items and update product stock
-            foreach ($cart->items as $item) {
+            foreach ($orderItems as $item) {
                 OrderItem::create([
                     'order_id' => $order->id,
-                    'product_id' => $item->product_id,
-                    'product_name' => $item->product->name,
-                    'price' => $item->price,
-                    'quantity' => $item->quantity,
-                    'subtotal' => $item->price * $item->quantity,
+                    'product_id' => $item['product']->id,
+                    'product_name' => $item['product']->name,
+                    'price' => $item['price'],
+                    'quantity' => $item['quantity'],
+                    'subtotal' => $item['subtotal'],
                 ]);
 
                 // Decrease product stock
-                $product = Product::find($item->product_id);
-                $product->stock -= $item->quantity;
-                $product->save();
+                $item['product']->stock -= $item['quantity'];
+                $item['product']->save();
             }
 
-            // Clear cart
-            $cart->items()->delete();
-
             DB::commit();
+
+            // Load order with items and user for complete response
+            $order->load(['items.product', 'user']);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Order placed successfully',
-                'order' => $order->load('items'),
+                'order' => $order,
             ], 201);
 
         } catch (\Exception $e) {

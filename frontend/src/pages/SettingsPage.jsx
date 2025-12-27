@@ -28,9 +28,9 @@ const SettingsPage = () => {
 
   const fetchUser = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       if (!token) {
-        navigate('/login');
+        navigate('/auth');
         return;
       }
 
@@ -51,14 +51,18 @@ const SettingsPage = () => {
           phone: userData.phone || ''
         });
         if (userData.avatar) {
-          setAvatarPreview(`http://localhost:8000/storage/${userData.avatar}`);
+          // Check if avatar is full URL (Cloudinary) or relative path
+          const avatarUrl = userData.avatar.startsWith('http') 
+            ? userData.avatar 
+            : `http://localhost:8000/storage/${userData.avatar}`;
+          setAvatarPreview(avatarUrl);
         }
       } else {
-        navigate('/login');
+        navigate('/auth');
       }
     } catch (error) {
       console.error('Error fetching user:', error);
-      navigate('/login');
+      navigate('/auth');
     } finally {
       setLoading(false);
     }
@@ -226,7 +230,7 @@ const SettingsPage = () => {
     formData.append('avatar', file);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch('http://localhost:8000/api/settings/avatar', {
         method: 'POST',
         headers: {
@@ -239,7 +243,12 @@ const SettingsPage = () => {
       const data = await response.json();
       if (data.success) {
         showSuccess('Avatar updated successfully');
-        fetchUser();
+        // Update user data
+        await fetchUser();
+        // Also update sessionStorage
+        const currentUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+        currentUser.avatar = data.avatar_url;
+        sessionStorage.setItem('user', JSON.stringify(currentUser));
       } else {
         showError(data.message || 'Failed to upload avatar');
       }
@@ -252,7 +261,7 @@ const SettingsPage = () => {
     if (!window.confirm('Are you sure you want to remove your avatar?')) return;
 
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch('http://localhost:8000/api/settings/avatar', {
         method: 'DELETE',
         headers: {
@@ -265,7 +274,11 @@ const SettingsPage = () => {
       if (data.success) {
         showSuccess('Avatar removed successfully');
         setAvatarPreview(null);
-        fetchUser();
+        await fetchUser();
+        // Update sessionStorage
+        const currentUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+        currentUser.avatar = null;
+        sessionStorage.setItem('user', JSON.stringify(currentUser));
       } else {
         showError(data.message || 'Failed to remove avatar');
       }
@@ -278,7 +291,7 @@ const SettingsPage = () => {
     e.preventDefault();
 
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch('http://localhost:8000/api/settings/profile', {
         method: 'POST',
         headers: {
@@ -303,7 +316,7 @@ const SettingsPage = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/auth');
   };
 
   const showSuccess = (message) => {

@@ -9,7 +9,8 @@ export default function AuthPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    name: '',
+    first_name: '',
+    last_name: '',
     phone: '',
     address: '',
     confirmPassword: ''
@@ -39,8 +40,12 @@ export default function AuthPage() {
     }
 
     if (!isLogin) {
-      if (!formData.name) {
-        newErrors.name = 'Name is required';
+      if (!formData.first_name) {
+        newErrors.first_name = 'First name is required';
+      }
+
+      if (!formData.last_name) {
+        newErrors.last_name = 'Last name is required';
       }
 
       if (!formData.phone) {
@@ -87,13 +92,33 @@ export default function AuthPage() {
         if (result.success) {
           navigate(from, { replace: true });
         } else {
-          setErrors({ submit: result.message || 'Login failed' });
+          // Check if verification is required
+          if (result.requires_verification) {
+            navigate('/verify-email', { 
+              state: { email: formData.email }
+            });
+          } else {
+            setErrors({ submit: result.message || 'Login failed' });
+          }
         }
       } else {
-        const { confirmPassword, ...registerData } = formData;
+        const { confirmPassword, ...rest } = formData;
+        // Laravel expects 'password_confirmation' field
+        const registerData = {
+          ...rest,
+          password_confirmation: confirmPassword
+        };
         const result = await register(registerData);
         if (result.success) {
-          navigate(from, { replace: true });
+          // Check if email verification is required
+          if (result.requires_verification) {
+            navigate('/verify-email', { 
+              state: { email: formData.email },
+              replace: true 
+            });
+          } else {
+            navigate(from, { replace: true });
+          }
         } else {
           setErrors({ submit: result.message || 'Registration failed' });
         }
@@ -111,7 +136,8 @@ export default function AuthPage() {
     setFormData({
       email: '',
       password: '',
-      name: '',
+      first_name: '',
+      last_name: '',
       phone: '',
       address: '',
       confirmPassword: ''
@@ -128,24 +154,45 @@ export default function AuthPage() {
         )}
 
         {!isLogin && (
-          <div className="flex-column">
-            <label>Full Name</label>
-            <div className={`inputForm ${errors.name ? 'error' : ''}`}>
-              <svg height={20} viewBox="0 0 24 24" width={20} xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-              </svg>
-              <input
-                type="text"
-                name="name"
-                className="input"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Enter your full name"
-              />
+          <>
+            <div className="flex-column">
+              <label>First Name</label>
+              <div className={`inputForm ${errors.first_name ? 'error' : ''}`}>
+                <svg height={20} viewBox="0 0 24 24" width={20} xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input
+                  type="text"
+                  name="first_name"
+                  className="input"
+                  value={formData.first_name}
+                  onChange={handleChange}
+                  placeholder="Enter your first name"
+                />
+              </div>
+              {errors.first_name && <span className="error-text">{errors.first_name}</span>}
             </div>
-            {errors.name && <span className="error-text">{errors.name}</span>}
-          </div>
+
+            <div className="flex-column">
+              <label>Last Name</label>
+              <div className={`inputForm ${errors.last_name ? 'error' : ''}`}>
+                <svg height={20} viewBox="0 0 24 24" width={20} xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input
+                  type="text"
+                  name="last_name"
+                  className="input"
+                  value={formData.last_name}
+                  onChange={handleChange}
+                  placeholder="Enter your last name"
+                />
+              </div>
+              {errors.last_name && <span className="error-text">{errors.last_name}</span>}
+            </div>
+          </>
         )}
 
         <div className="flex-column">

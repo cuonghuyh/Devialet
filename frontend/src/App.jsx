@@ -3,20 +3,21 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import BackToTopButton from './components/BackToTopButton';
+import ChatWidget from './components/ChatWidget';
 import ProtectedRoute from './components/ProtectedRoute';
 import useAuthStore from './store/authStore';
-import useCartStore from './store/cartStore';
 
 // Pages
 import HomePage from './pages/HomePage-schon';
 import ProductsPage from './pages/ProductsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
-import ContactPage from './pages/ContactPage';
 import CartPage from './pages/CartPage';
+import ContactPage from './pages/ContactPage';
 import OrdersPage from './pages/OrdersPage';
 import MyReviewsPage from './pages/MyReviewsPage';
 import SettingsPage from './pages/SettingsPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import EmailVerificationPage from './pages/EmailVerificationPage';
 import TailwindDemo from './components/TailwindDemo';
 import AuthPage from './pages/AuthPage';
 
@@ -35,7 +36,7 @@ const AuthHandler = () => {
   useEffect(() => {
     const handleLogout = () => {
       logout();
-      navigate('/login');
+      navigate('/auth');
     };
     
     window.addEventListener('auth:logout', handleLogout);
@@ -47,14 +48,6 @@ const AuthHandler = () => {
 
 function App() {
   const { isAuthenticated, user } = useAuthStore();
-  const { fetchCart } = useCartStore();
-
-  useEffect(() => {
-    // Fetch cart on mount if user is logged in
-    if (isAuthenticated) {
-      fetchCart();
-    }
-  }, [isAuthenticated, fetchCart]);
 
   // Layout wrapper for regular pages
   const RegularLayout = ({ children }) => (
@@ -63,6 +56,7 @@ function App() {
       {children}
       <Footer />
       <BackToTopButton />
+      <ChatWidget />
     </div>
   );
 
@@ -83,26 +77,18 @@ function App() {
 
         {/* Auth Routes - WITHOUT Navigation/Footer */}
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/verify-email" element={<EmailVerificationPage />} />
 
         {/* Regular Routes - WITH Navigation/Footer */}
         <Route path="/" element={<RegularLayout><HomePage /></RegularLayout>} />
         <Route path="/products" element={<RegularLayout><ProductsPage /></RegularLayout>} />
         <Route path="/products/:id" element={<RegularLayout><ProductDetailPage /></RegularLayout>} />
+        <Route path="/cart" element={<RegularLayout><CartPage /></RegularLayout>} />
         <Route path="/contact" element={<RegularLayout><ContactPage /></RegularLayout>} />
         <Route path="/forgot-password" element={<RegularLayout><ForgotPasswordPage /></RegularLayout>} />
         <Route path="/demo" element={<RegularLayout><TailwindDemo /></RegularLayout>} />
         
         {/* Protected Routes with Layout */}
-        <Route
-          path="/cart"
-          element={
-            <RegularLayout>
-              <ProtectedRoute>
-                <CartPage />
-              </ProtectedRoute>
-            </RegularLayout>
-          }
-        />
         <Route
           path="/orders"
           element={

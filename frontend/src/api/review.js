@@ -10,7 +10,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -51,6 +51,12 @@ export const reviewAPI = {
   // Lấy danh sách sản phẩm có thể review
   getReviewableProducts: async () => {
     const response = await api.get('/reviews/reviewable-products');
+    return response.data;
+  },
+
+  // Lấy danh sách product IDs đã review
+  getMyReviewedProducts: async () => {
+    const response = await api.get('/reviews/my-reviewed-products');
     return response.data;
   },
 };

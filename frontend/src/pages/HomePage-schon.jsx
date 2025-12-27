@@ -29,11 +29,11 @@ const ProductCard = memo(({ product, onNavigate }) => (
       <div className="product-price">
         {product.sale_price ? (
           <>
-            <span className="price-sale">${product.sale_price}</span>
-            <span className="price-original">${product.price}</span>
+            <span className="price-sale">{new Intl.NumberFormat('vi-VN').format(product.sale_price)} ₫</span>
+            <span className="price-original">{new Intl.NumberFormat('vi-VN').format(product.price)} ₫</span>
           </>
         ) : (
-          <span className="price-current">${product.price}</span>
+          <span className="price-current">{new Intl.NumberFormat('vi-VN').format(product.price)} ₫</span>
         )}
       </div>
       <div className="product-rating">

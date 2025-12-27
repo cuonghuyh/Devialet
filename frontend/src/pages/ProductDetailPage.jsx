@@ -17,6 +17,7 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [initialReviewData, setInitialReviewData] = useState(null);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -28,6 +29,14 @@ const ProductDetailPage = () => {
       try {
         const data = await productsAPI.getProduct(id);
         setProduct(data.product || data);
+        // Pre-load reviews data from product API
+        if (data.reviews) {
+          setInitialReviewData({
+            reviews: data.reviews,
+            average_rating: data.average_rating,
+            total_reviews: data.total_reviews,
+          });
+        }
       } catch (error) {
         console.error('Error fetching product:', error);
         navigate('/products');
@@ -98,7 +107,7 @@ const ProductDetailPage = () => {
           <div className="product-info-section">
             <div className="product-category">{product.category?.name}</div>
             <h1 className="product-name">{product.name}</h1>
-            <div className="product-price">${parseFloat(product.price).toFixed(2)}</div>
+            <div className="product-price">{new Intl.NumberFormat('vi-VN').format(product.price)} ₫</div>
             
             <p className="product-description">{product.description}</p>
             
@@ -132,7 +141,7 @@ const ProductDetailPage = () => {
                 <button 
                   type="button"
                   className="add-to-cart-button" 
-                  data-tooltip={`$${product.price}`}
+                  data-tooltip={`${new Intl.NumberFormat('vi-VN').format(product.price)} ₫`}
                   onClick={handleAddToCart}
                 >
                   <div className="button-wrapper">
@@ -150,7 +159,7 @@ const ProductDetailPage = () => {
         </div>
 
         {/* Review Section */}
-        <ReviewSection productId={id} />
+        <ReviewSection productId={id} initialData={initialReviewData} />
       </div>
 
       {/* Login Required Modal */}
@@ -175,7 +184,7 @@ const ProductDetailPage = () => {
               <button className="btn-secondary" onClick={() => setShowLoginModal(false)}>
                 Cancel
               </button>
-              <button className="btn-primary" onClick={() => navigate('/login')}>
+              <button className="btn-primary" onClick={() => navigate('/auth')}>
                 Login
               </button>
             </div>

@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { reviewAPI } from '../api/review';
 import './OrdersPage.css';
 
 const OrdersPage = () => {
@@ -8,15 +9,19 @@ const OrdersPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewProduct, setReviewProduct] = useState(null);
+  const [reviewForm, setReviewForm] = useState({
+    rating: 5,
+    comment: '',
+  });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewedProducts, setReviewedProducts] = useState([]);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch('http://localhost:8000/api/orders', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -26,13 +31,57 @@ const OrdersPage = () => {
       const data = await response.json();
       if (response.ok) {
         setOrders(data.orders || []);
+        // Update selected order if modal is open
+        if (selectedOrder) {
+          const updatedOrder = (data.orders || []).find(o => o.id === selectedOrder.id);
+          if (updatedOrder) {
+            setSelectedOrder(updatedOrder);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
-  };
+  }, [selectedOrder]);
+
+  // Fetch reviewed products
+  const fetchReviewedProducts = useCallback(async () => {
+    try {
+      const data = await reviewAPI.getMyReviewedProducts();
+      setReviewedProducts(data.reviewed_product_ids || []);
+    } catch (error) {
+      console.error('Error fetching reviewed products:', error);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    fetchOrders();
+    fetchReviewedProducts();
+  }, []);
+
+  // Polling every 5 seconds for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOrders(false); // Don't show loading spinner for background updates
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
+
+  // Refetch when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchOrders(false);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchOrders]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -47,13 +96,49 @@ const OrdersPage = () => {
 
   const getStatusText = (status) => {
     const texts = {
-      pending: 'Pending',
-      processing: 'Processing',
-      shipped: 'Shipped',
-      delivered: 'Delivered',
-      cancelled: 'Cancelled',
+      pending: 'Chờ xử lý',
+      processing: 'Đang xử lý',
+      shipped: 'Đã gửi',
+      delivered: 'Đã giao',
+      cancelled: 'Đã hủy',
     };
     return texts[status] || status;
+  };
+
+  const handleReviewProduct = (productId) => {
+    navigate(`/products/${productId}`);
+    setShowDetailModal(false);
+  };
+
+  const openReviewModal = (product) => {
+    setReviewProduct(product);
+    setReviewForm({ rating: 5, comment: '' });
+    setShowReviewModal(true);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewProduct) return;
+    
+    setSubmittingReview(true);
+    try {
+      await reviewAPI.createReview({
+        product_id: reviewProduct.id,
+        rating: reviewForm.rating,
+        comment: reviewForm.comment,
+      });
+      
+      // Add product to reviewed list
+      setReviewedProducts(prev => [...prev, reviewProduct.id]);
+      
+      alert('Đánh giá thành công!');
+      setShowReviewModal(false);
+      setReviewProduct(null);
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      alert(error.response?.data?.message || 'Không thể gửi đánh giá');
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   const getPaymentStatusColor = (status) => {
@@ -67,18 +152,20 @@ const OrdersPage = () => {
 
   const getPaymentStatusText = (status) => {
     const texts = {
-      unpaid: 'Unpaid',
-      paid: 'Paid',
-      refunded: 'Refunded',
+      unpaid: 'Chưa thanh toán',
+      paid: 'Đã thanh toán',
+      refunded: 'Đã hoàn tiền',
     };
     return texts[status] || status;
   };
 
   const getPaymentMethodText = (method) => {
     const texts = {
-      cod: 'Cash on Delivery',
-      bank_transfer: 'Bank Transfer',
-      credit_card: 'Credit Card',
+      cod: 'Tiền mặt',
+      bank_transfer: 'Chuyển khoản',
+      credit_card: 'Thẻ tín dụng',
+      momo: 'MoMo',
+      vietqr: 'VietQR',
     };
     return texts[method] || method;
   };
@@ -111,8 +198,8 @@ const OrdersPage = () => {
     <div className="orders-page">
       <div className="orders-container">
         <div className="orders-header">
-          <h1>My Orders</h1>
-          <p>Track and manage your orders</p>
+          <h1>Đơn hàng của tôi</h1>
+          <p>Theo dõi và quản lý đơn hàng</p>
         </div>
 
         {orders.length > 0 ? (
@@ -142,7 +229,7 @@ const OrdersPage = () => {
 
                 <div className="order-card-body">
                   <div className="order-items-preview">
-                    {order.items && order.items.slice(0, 3).map((item, index) => (
+                    {order.items && order.items.map((item, index) => (
                       <div key={index} className="order-item-preview">
                         <div className="item-preview-image">
                           {item.product?.image_url ? (
@@ -155,21 +242,33 @@ const OrdersPage = () => {
                           <span className="item-name">{item.product_name}</span>
                           <span className="item-quantity">x{item.quantity}</span>
                         </div>
+                        {order.status === 'delivered' && item.product && (
+                          reviewedProducts.includes(item.product.id) ? (
+                            <span className="item-reviewed-badge">✓ Đã đánh giá</span>
+                          ) : (
+                            <button 
+                              className="item-review-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openReviewModal(item.product);
+                              }}
+                            >
+                              ⭐ Đánh giá
+                            </button>
+                          )
+                        )}
                       </div>
                     ))}
-                    {order.items && order.items.length > 3 && (
-                      <div className="more-items">+{order.items.length - 3} more</div>
-                    )}
                   </div>
 
                   <div className="order-details-summary">
                     <div className="detail-row">
-                      <span>Payment Method</span>
+                      <span>Phương thức thanh toán</span>
                       <span>{getPaymentMethodText(order.payment_method)}</span>
                     </div>
                     <div className="detail-row total">
-                      <span>Total</span>
-                      <span className="total-amount">${parseFloat(order.total).toFixed(2)}</span>
+                      <span>Tổng cộng</span>
+                      <span className="total-amount">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.total)}</span>
                     </div>
                   </div>
                 </div>
@@ -179,7 +278,7 @@ const OrdersPage = () => {
                     className="view-details-btn"
                     onClick={() => handleViewDetails(order)}
                   >
-                    View Details
+                    Xem chi tiết
                   </button>
                 </div>
               </div>
@@ -188,10 +287,10 @@ const OrdersPage = () => {
         ) : (
           <div className="empty-orders">
             <div className="empty-icon">📦</div>
-            <h3>No Orders Yet</h3>
-            <p>You haven't placed any orders yet</p>
+            <h3>Chưa có đơn hàng</h3>
+            <p>Bạn chưa có đơn hàng nào</p>
             <button className="shop-now-btn" onClick={() => navigate('/products')}>
-              Start Shopping
+              Mua sắm ngay
             </button>
           </div>
         )}
@@ -209,13 +308,13 @@ const OrdersPage = () => {
             </button>
 
             <div className="modal-header">
-              <h2>Order Details</h2>
+              <h2>Chi tiết đơn hàng</h2>
               <p className="order-number-large">#{selectedOrder.order_number}</p>
             </div>
 
             <div className="modal-body">
               <div className="detail-section">
-                <h3>Order Status</h3>
+                <h3>Trạng thái đơn hàng</h3>
                 <div className="status-info">
                   <span 
                     className="status-badge large" 
@@ -230,18 +329,18 @@ const OrdersPage = () => {
                     {getPaymentStatusText(selectedOrder.payment_status)}
                   </span>
                 </div>
-                <p className="order-date-full">Ordered on {formatDate(selectedOrder.created_at)}</p>
+                <p className="order-date-full">Đặt hàng lúc {formatDate(selectedOrder.created_at)}</p>
               </div>
 
               <div className="detail-section">
-                <h3>Customer Information</h3>
+                <h3>Thông tin khách hàng</h3>
                 <div className="info-grid">
                   <div className="info-item">
-                    <label>Name</label>
+                    <label>Họ tên</label>
                     <span>{selectedOrder.customer_name}</span>
                   </div>
                   <div className="info-item">
-                    <label>Phone</label>
+                    <label>Điện thoại</label>
                     <span>{selectedOrder.customer_phone}</span>
                   </div>
                   {selectedOrder.customer_email && (
@@ -251,14 +350,14 @@ const OrdersPage = () => {
                     </div>
                   )}
                   <div className="info-item full-width">
-                    <label>Address</label>
+                    <label>Địa chỉ</label>
                     <span>{selectedOrder.customer_address}</span>
                   </div>
                 </div>
               </div>
 
               <div className="detail-section">
-                <h3>Order Items</h3>
+                <h3>Sản phẩm</h3>
                 <div className="order-items-list">
                   {selectedOrder.items && selectedOrder.items.map((item, index) => (
                     <div key={index} className="order-item-detail">
@@ -271,10 +370,24 @@ const OrdersPage = () => {
                       </div>
                       <div className="item-info">
                         <h4>{item.product_name}</h4>
-                        <p className="item-price">${parseFloat(item.price).toFixed(2)} x {item.quantity}</p>
+                        <p className="item-price">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.price)} x {item.quantity}</p>
                       </div>
-                      <div className="item-subtotal">
-                        ${parseFloat(item.subtotal).toFixed(2)}
+                      <div className="item-actions">
+                        <div className="item-subtotal">
+                          {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.subtotal)}
+                        </div>
+                        {selectedOrder.status === 'delivered' && item.product && (
+                          reviewedProducts.includes(item.product.id) ? (
+                            <span className="reviewed-badge">✓ Đã đánh giá</span>
+                          ) : (
+                            <button 
+                              className="review-product-btn"
+                              onClick={() => openReviewModal(item.product)}
+                            >
+                              Đánh giá
+                            </button>
+                          )
+                        )}
                       </div>
                     </div>
                   ))}
@@ -282,33 +395,103 @@ const OrdersPage = () => {
               </div>
 
               <div className="detail-section">
-                <h3>Payment Information</h3>
+                <h3>Thông tin thanh toán</h3>
                 <div className="payment-summary">
                   <div className="summary-row">
-                    <span>Payment Method</span>
+                    <span>Phương thức thanh toán</span>
                     <span>{getPaymentMethodText(selectedOrder.payment_method)}</span>
                   </div>
                   <div className="summary-row">
-                    <span>Subtotal</span>
-                    <span>${parseFloat(selectedOrder.subtotal).toFixed(2)}</span>
+                    <span>Tạm tính</span>
+                    <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedOrder.subtotal)}</span>
                   </div>
                   <div className="summary-row">
-                    <span>Shipping Fee</span>
-                    <span className="free">{selectedOrder.shipping_fee > 0 ? `$${parseFloat(selectedOrder.shipping_fee).toFixed(2)}` : 'Free'}</span>
+                    <span>Phí vận chuyển</span>
+                    <span className="free">{selectedOrder.shipping_fee > 0 ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedOrder.shipping_fee) : 'Miễn phí'}</span>
                   </div>
                   <div className="summary-row total">
-                    <span>Total</span>
-                    <span>${parseFloat(selectedOrder.total).toFixed(2)}</span>
+                    <span>Tổng cộng</span>
+                    <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedOrder.total)}</span>
                   </div>
                 </div>
               </div>
 
               {selectedOrder.note && (
                 <div className="detail-section">
-                  <h3>Note</h3>
+                  <h3>Ghi chú</h3>
                   <p className="order-note">{selectedOrder.note}</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {showReviewModal && reviewProduct && (
+        <div className="review-modal-overlay" onClick={() => setShowReviewModal(false)}>
+          <div className="review-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowReviewModal(false)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+
+            <div className="review-modal-header">
+              <h2>Đánh giá sản phẩm</h2>
+              <div className="review-product-info">
+                {reviewProduct.image_url && (
+                  <img src={reviewProduct.image_url} alt={reviewProduct.name} />
+                )}
+                <h3>{reviewProduct.name}</h3>
+              </div>
+            </div>
+
+            <div className="review-modal-body">
+              <div className="rating-section">
+                <label>Đánh giá của bạn</label>
+                <div className="star-rating">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      className={`star ${reviewForm.rating >= star ? 'active' : ''}`}
+                      onClick={() => setReviewForm({ ...reviewForm, rating: star })}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="comment-section">
+                <label>Nhận xét của bạn</label>
+                <textarea
+                  value={reviewForm.comment}
+                  onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                  placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này..."
+                  rows={6}
+                  required
+                />
+              </div>
+
+              <div className="review-modal-footer">
+                <button 
+                  className="cancel-btn"
+                  onClick={() => setShowReviewModal(false)}
+                  disabled={submittingReview}
+                >
+                  Hủy
+                </button>
+                <button 
+                  className="submit-review-btn"
+                  onClick={handleSubmitReview}
+                  disabled={submittingReview || !reviewForm.comment.trim()}
+                >
+                  {submittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

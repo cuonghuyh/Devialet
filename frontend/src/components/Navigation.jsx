@@ -16,6 +16,9 @@ const Navigation = () => {
   const navRef = useRef(null);
   const [isDarkBackground, setIsDarkBackground] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  
+  // Check if on products page
+  const isProductsPage = location.pathname === '/products' || location.pathname.startsWith('/products/');
 
   // Hide navigation on admin pages
   if (location.pathname.startsWith('/admin')) {
@@ -176,17 +179,19 @@ const Navigation = () => {
       <nav ref={navRef}>
         <div className="logo">DEVIALET</div>
         
-        {/* Cart Icon - Top Right */}
-        <Link to="/cart" className={`top-cart-btn ${isActive('/cart') ? 'active' : ''}`}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <path d="M16 10a4 4 0 0 1-8 0"/>
-          </svg>
-          {itemCount > 0 && (
-            <span className="top-cart-badge">{itemCount > 99 ? '99+' : itemCount}</span>
-          )}
-        </Link>
+        {/* Cart Icon - only show on products page */}
+        {isProductsPage && (
+          <Link to="/cart" className="nav-cart-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="9" cy="21" r="1"/>
+              <circle cx="20" cy="21" r="1"/>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+            </svg>
+            {itemCount > 0 && (
+              <span className="cart-badge">{itemCount > 99 ? '99+' : itemCount}</span>
+            )}
+          </Link>
+        )}
       </nav>
       
       <ul className="nav-links" ref={navLinksRef}>

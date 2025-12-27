@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  php-backend:
+    build: ./backend-php
+    container_name: devialet_php_backend
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend-php:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_DATABASE: devialet_shop
+      DB_USERNAME: root
+      DB_PASSWORD: secret
+    depends_on:
+      - db
+    networks:
+      - devialet-network
+
+  frontend:
+    build: ./frontend
+    container_name: devialet_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - php-backend
+    networks:
+      - devialet-network
+
+  db:
+    image: mysql:8.0
+    container_name: devialet_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: devialet_shop
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - dbdata:/var/lib/mysql
+      - ./backend/database:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    networks:
+      - devialet-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: devialet_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: secret
+    depends_on:
+      - db
+    networks:
+      - devialet-network
+
+volumes:
+  dbdata:
+
+networks:
+  devialet-network:
+    driver: bridge

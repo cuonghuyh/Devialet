@@ -19,6 +19,7 @@ export const adminAPI = {
   // Order management
   getOrders: (params) => api.get('/admin/orders', { params }),
   updateOrderStatus: (id, status) => api.patch(`/admin/orders/${id}/status`, { status }),
+  deleteOrder: (id) => api.delete(`/admin/orders/${id}`),
 
   // User management
   getUsers: (params) => api.get('/admin/users', { params }),

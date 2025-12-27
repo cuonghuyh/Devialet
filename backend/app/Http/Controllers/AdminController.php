@@ -138,9 +138,20 @@ class AdminController extends Controller
         }
 
         $users = $query->orderBy('created_at', 'desc')
-            ->paginate($request->per_page ?? 20);
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => trim($user->first_name . ' ' . $user->last_name),
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'avatar' => $user->avatar,
+                    'role' => $user->role,
+                    'created_at' => $user->created_at,
+                ];
+            });
 
-        return response()->json($users);
+        return response()->json(['data' => $users]);
     }
 
     /**
@@ -154,6 +165,34 @@ class AdminController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Xóa đánh giá thành công',
+        ]);
+    }
+
+    /**
+     * Xóa đơn hàng
+     */
+    public function deleteOrder($id)
+    {
+        $order = Order::with('items')->findOrFail($id);
+        
+        // Restore product stock before deleting
+        foreach ($order->items as $item) {
+            $product = Product::find($item->product_id);
+            if ($product) {
+                $product->stock += $item->quantity;
+                $product->save();
+            }
+        }
+        
+        // Delete order items first
+        $order->items()->delete();
+        
+        // Delete order
+        $order->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Xóa đơn hàng thành công',
         ]);
     }
 

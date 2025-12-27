@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProductController;
-use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
@@ -27,11 +26,19 @@ Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::post('/contact', [\App\Http\Controllers\ContactController::class, 'submit']);
 
+// Payment check proxy (to bypass CORS from Google Script)
+Route::get('/payment/check', [\App\Http\Controllers\PaymentCheckController::class, 'check']);
+Route::post('/payment/verify', [\App\Http\Controllers\PaymentCheckController::class, 'verify']);
+
 // Review routes (public - anyone can view)
 Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
 // Authentication routes
 Route::post('/register', [AuthController::class, 'signup']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// Email verification routes
+Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+Route::post('/resend-verification-otp', [AuthController::class, 'resendVerificationOTP']);
 
 // Social Authentication routes (removed)
 // Password reset routes
@@ -44,11 +51,6 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
     Route::post('/logout', [AuthController::class, 'logout']);
-    // Cart routes
-    Route::get('/cart', [CartController::class, 'getCart']);
-    Route::post('/cart/add', [CartController::class, 'addToCart']);
-    Route::put('/cart/update/{itemId}', [CartController::class, 'updateQuantity']);
-    Route::delete('/cart/remove/{itemId}', [CartController::class, 'removeItem']);
     // Settings routes
     Route::post('/settings/profile', [\App\Http\Controllers\SettingsController::class, 'updateProfile']);
     Route::post('/settings/avatar', [\App\Http\Controllers\SettingsController::class, 'uploadAvatar']);
@@ -64,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
     Route::get('/products/{productId}/my-review', [ReviewController::class, 'checkUserReview']);
     Route::get('/reviews/reviewable-products', [ReviewController::class, 'getReviewableProducts']);
+    Route::get('/reviews/my-reviewed-products', [ReviewController::class, 'getMyReviewedProducts']);
     // Admin routes (require admin role)
     Route::middleware(\App\Http\Middleware\IsAdmin::class)->prefix('admin')->group(function () {
         // Dashboard stats
@@ -81,6 +84,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Order management
         Route::get('/orders', [AdminController::class, 'getOrders']);
         Route::patch('/orders/{id}/status', [AdminController::class, 'updateOrderStatus']);
+        Route::delete('/orders/{id}', [AdminController::class, 'deleteOrder']);
         
         // User management
         Route::get('/users', [AdminController::class, 'getUsers']);

@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\PasswordReset;
+use App\Models\EmailVerification;
+use App\Rules\RealEmail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\OTPMail;
+use App\Mail\VerificationOTPMail;
 
 class AuthController extends Controller
 {
@@ -31,7 +34,8 @@ class AuthController extends Controller
                 'email:rfc,dns',  // Kiểm tra DNS records của domain
                 'max:255',
                 'unique:users',
-                'regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/'
+                'regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/',
+                new RealEmail()  // Chặn email fake/disposable
             ],
             'phone' => [
                 'required',
@@ -65,25 +69,38 @@ class AuthController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'password' => Hash::make($request->password),
+            'email_verified_at' => null, // Chưa verify
         ]);
+
+        // Tạo và gửi OTP verification
+        EmailVerification::where('email', $request->email)->delete(); // Xóa OTP cũ
+        $otp = EmailVerification::generateOTP();
+        
+        EmailVerification::create([
+            'email' => $request->email,
+            'otp' => $otp,
+            'expires_at' => now()->addMinutes(10),
+        ]);
+
+        // Gửi email OTP
+        $userName = $user->first_name . ' ' . $user->last_name;
+        Mail::to($user->email)->send(new VerificationOTPMail($otp, $userName));
 
         // API request
         if ($request->expectsJson()) {
-            $token = $user->createToken('auth_token')->plainTextToken;
-            
             return response()->json([
                 'success' => true,
-                'message' => 'Account created successfully!',
-                'user' => $user,
-                'token' => $token
+                'message' => 'Account created! Please check your email to verify your account.',
+                'email' => $user->email,
+                'requires_verification' => true
             ], 201);
         }
 
         // Web request
-        Auth::login($user, true);
-        $request->session()->regenerate();
-
-        return redirect('/')->with('success', 'Account created successfully!');
+        return redirect('/verify-email')->with([
+            'success' => 'Account created! Please check your email to verify your account.',
+            'email' => $user->email
+        ]);
     }
 
     // Hiển thị trang đăng nhập
@@ -102,22 +119,25 @@ class AuthController extends Controller
 
         // API request
         if ($request->expectsJson()) {
-            if (Auth::attempt($credentials)) {
-                $user = Auth::user();
-                $token = $user->createToken('auth_token')->plainTextToken;
-                
+            $user = User::where('email', $credentials['email'])->first();
+
+            // Check if user exists and password is correct
+            if (!$user || !Hash::check($credentials['password'], $user->password)) {
                 return response()->json([
-                    'success' => true,
-                    'message' => 'Logged in successfully!',
-                    'user' => $user,
-                    'token' => $token
-                ]);
+                    'success' => false,
+                    'message' => 'The provided credentials do not match our records.'
+                ], 401);
             }
 
+            // Login successful - no email verification check for existing users
+            $token = $user->createToken('auth_token')->plainTextToken;
+            
             return response()->json([
-                'success' => false,
-                'message' => 'The provided credentials do not match our records.'
-            ], 401);
+                'success' => true,
+                'message' => 'Logged in successfully!',
+                'user' => $user,
+                'token' => $token
+            ]);
         }
 
         // Web request
@@ -135,6 +155,20 @@ class AuthController extends Controller
     // Xử lý đăng xuất
     public function logout(Request $request)
     {
+        // API request - revoke token
+        if ($request->expectsJson()) {
+            // Revoke current access token
+            if ($request->user()) {
+                $request->user()->currentAccessToken()->delete();
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Logged out successfully!'
+            ]);
+        }
+        
+        // Web request
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -198,7 +232,8 @@ class AuthController extends Controller
                 'email:rfc,dns',  // Kiểm tra DNS records của domain
                 'max:255',
                 'unique:users,email,' . $user->id,
-                'regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/'
+                'regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/',
+                new RealEmail(),  // Chặn email fake/disposable
             ],
             'phone' => [
                 'required',
@@ -247,7 +282,7 @@ class AuthController extends Controller
     public function sendOTP(Request $request)
     {
         $request->validate([
-            'email' => 'required|email|exists:users,email',
+            'email' => ['required', 'email', 'exists:users,email', new RealEmail()],
         ], [
             'email.exists' => 'This email is not registered in our system.',
         ]);
@@ -353,8 +388,21 @@ class AuthController extends Controller
             return back()->with('error', 'Invalid or expired OTP. Please start over.');
         }
 
-        // Cập nhật password mới
+        // Lấy thông tin user
         $user = User::where('email', $request->email)->first();
+
+        // Kiểm tra password mới không trùng với password cũ
+        if (Hash::check($request->password, $user->password)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'New password must be different from your current password.'
+                ], 422);
+            }
+            return back()->with('error', 'New password must be different from your current password.');
+        }
+
+        // Cập nhật password mới
         $user->password = Hash::make($request->password);
         $user->save();
 
@@ -377,5 +425,100 @@ class AuthController extends Controller
         Auth::login($user);
 
         return redirect('/')->with('success', 'Password reset successfully! You are now logged in.');
+    }
+
+    // Verify email với OTP
+    public function verifyEmail(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'otp' => 'required|digits:6',
+        ]);
+
+        $verification = EmailVerification::where('email', $request->email)
+                                        ->where('otp', $request->otp)
+                                        ->first();
+
+        if (!$verification || $verification->isExpired()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Invalid or expired OTP code.'
+                ], 400);
+            }
+            return back()->with('error', 'Invalid or expired OTP code.');
+        }
+
+        // Cập nhật user verified
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found.'
+            ], 404);
+        }
+
+        $user->email_verified_at = now();
+        $user->save();
+
+        // Xóa verification đã sử dụng
+        $verification->delete();
+
+        if ($request->expectsJson()) {
+            // Auto login và trả token
+            $token = $user->createToken('auth_token')->plainTextToken;
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Email verified successfully! You can now login.',
+                'user' => $user,
+                'token' => $token
+            ]);
+        }
+
+        // Web - auto login
+        Auth::login($user);
+        return redirect('/')->with('success', 'Email verified successfully!');
+    }
+
+    // Resend OTP verification
+    public function resendVerificationOTP(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        // Check if already verified
+        if ($user->email_verified_at) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email is already verified.'
+            ], 400);
+        }
+
+        // Xóa OTP cũ và tạo mới
+        EmailVerification::where('email', $request->email)->delete();
+        $otp = EmailVerification::generateOTP();
+
+        EmailVerification::create([
+            'email' => $request->email,
+            'otp' => $otp,
+            'expires_at' => now()->addMinutes(10),
+        ]);
+
+        // Gửi email
+        $userName = $user->first_name . ' ' . $user->last_name;
+        Mail::to($user->email)->send(new VerificationOTPMail($otp, $userName));
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Verification code sent to your email.'
+            ]);
+        }
+
+        return back()->with('success', 'Verification code sent to your email.');
     }
 }

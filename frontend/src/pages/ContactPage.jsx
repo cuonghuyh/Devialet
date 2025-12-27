@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { contactAPI } from '../api/contact';
 import './ContactPage.css';
 
 const ContactPage = () => {
@@ -49,13 +50,17 @@ const ContactPage = () => {
     setIsSubmitting(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await contactAPI.submit(formData);
       
-      showNotification('Gửi thành công! Chúng tôi sẽ phản hồi trong 24h.', 'success');
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+      if (response.success) {
+        showNotification('Gửi thành công! Chúng tôi sẽ phản hồi trong 24h.', 'success');
+        setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+      } else {
+        showNotification(response.message || 'Có lỗi xảy ra. Vui lòng thử lại!', 'error');
+      }
     } catch (error) {
-      showNotification('Có lỗi xảy ra. Vui lòng thử lại!', 'error');
+      console.error('Contact error:', error);
+      showNotification(error.response?.data?.message || 'Có lỗi xảy ra. Vui lòng thử lại!', 'error');
     } finally {
       setIsSubmitting(false);
     }

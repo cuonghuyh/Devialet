@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { productsAPI } from '../api/products';
-import useCartStore from '../store/cartStore';
 import useAuthStore from '../store/authStore';
+import useCartStore from '../store/cartStore';
 import './ProductsPage.css';
 
 const ProductsPage = () => {
@@ -11,7 +11,7 @@ const ProductsPage = () => {
   const { isAuthenticated } = useAuthStore();
   const { addToCart } = useCartStore();
   
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // All products from API
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
@@ -28,6 +28,22 @@ const ProductsPage = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  const handleAddToCart = async (e, product) => {
+    e.stopPropagation();
+    
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    const result = await addToCart(product.id, 1, product);
+    if (result.success) {
+      showNotification(`Đã thêm "${product.name}" vào giỏ hàng!`, 'success');
+    } else {
+      showNotification(result.message || 'Không thể thêm sản phẩm vào giỏ hàng', 'error');
+    }
+  };
+
   useEffect(() => {
     const category = searchParams.get('category');
     const search = searchParams.get('search');
@@ -37,15 +53,13 @@ const ProductsPage = () => {
     
     const fetchData = async () => {
       try {
+        // Fetch ALL products once, then filter on frontend
         const [productsData, categoriesData] = await Promise.all([
-          productsAPI.getProducts({ 
-            filter: selectedCategory !== 'all' ? selectedCategory : undefined,
-            search: search || undefined
-          }),
+          productsAPI.getProducts(),
           productsAPI.getCategories()
         ]);
         
-        setProducts(productsData.products || productsData || []);
+        setAllProducts(productsData.products || productsData || []);
         setCategories(categoriesData.categories || categoriesData || []);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -55,7 +69,34 @@ const ProductsPage = () => {
     };
 
     fetchData();
-  }, [selectedCategory, searchParams]);
+  }, []); // Only fetch once on mount
+
+  // Auto search when typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const params = {};
+      if (selectedCategory !== 'all') params.category = selectedCategory;
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+      setSearchParams(params);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const params = {};
+    if (selectedCategory !== 'all') params.category = selectedCategory;
+    if (searchTerm.trim()) params.search = searchTerm.trim();
+    setSearchParams(params);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    const params = {};
+    if (selectedCategory !== 'all') params.category = selectedCategory;
+    setSearchParams(params);
+  };
 
   const handleCategoryChange = (category) => {
     setSelectedCategory(category);
@@ -71,21 +112,27 @@ const ProductsPage = () => {
     navigate(`/products/${product.id}`);
   };
 
-  const handleAddToCart = async (product, e) => {
-    e.stopPropagation();
+  // Filter products by category and search term (frontend filtering for instant response)
+  const products = allProducts.filter(product => {
+    // Category filter
+    if (selectedCategory !== 'all') {
+      const categoryMatch = product.category_id?.toString() === selectedCategory || 
+                           product.category?.id?.toString() === selectedCategory ||
+                           product.category?.slug === selectedCategory ||
+                           product.category?.name?.toLowerCase() === selectedCategory.toLowerCase();
+      if (!categoryMatch) return false;
+    }
     
-    if (!isAuthenticated) {
-      setShowLoginModal(true);
-      return;
+    // Search filter
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase().trim();
+      const nameMatch = product.name?.toLowerCase().includes(search);
+      const descMatch = product.description?.toLowerCase().includes(search);
+      if (!nameMatch && !descMatch) return false;
     }
-
-    const result = await addToCart(product.id, 1);
-    if (result.success) {
-      showNotification(`Đã thêm "${product.name}" vào giỏ hàng!`, 'success');
-    } else {
-      showNotification(result.message || 'Không thể thêm sản phẩm', 'error');
-    }
-  };
+    
+    return true;
+  });
 
   // Sort products
   const sortedProducts = [...products].sort((a, b) => {
@@ -112,7 +159,7 @@ const ProductsPage = () => {
   });
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US').format(price);
+    return new Intl.NumberFormat('vi-VN').format(price) + ' ₫';
   };
 
   return (
@@ -193,7 +240,7 @@ const ProductsPage = () => {
                 onClick={() => handleCategoryChange('all')}
               >
                 <span className="category-name">Tất cả sản phẩm</span>
-                <span className="category-count">{products.length}</span>
+                <span className="category-count">{allProducts.length}</span>
               </li>
               {categories.map(cat => (
                 <li 
@@ -203,7 +250,7 @@ const ProductsPage = () => {
                 >
                   <span className="category-name">{cat.name}</span>
                   <span className="category-count">
-                    {products.filter(p => p.category_id === cat.id).length}
+                    {allProducts.filter(p => p.category_id === cat.id || p.category?.slug === cat.slug).length}
                   </span>
                 </li>
               ))}
@@ -291,6 +338,40 @@ const ProductsPage = () => {
 
         {/* Main Content */}
         <main className="shop-main">
+          {/* Search Bar */}
+          <div className="search-section">
+            <form className="search-form" onSubmit={handleSearch}>
+              <div className="search-input-wrapper">
+                <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder="Tìm kiếm sản phẩm (tên, mô tả)..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    className="clear-search-btn"
+                    onClick={clearSearch}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <button type="submit" className="search-btn">
+                Tìm kiếm
+              </button>
+            </form>
+          </div>
+
           {/* Toolbar */}
           <div className="shop-toolbar">
             <div className="toolbar-left">
@@ -298,11 +379,8 @@ const ProductsPage = () => {
                 <strong>{filteredProducts.length}</strong> sản phẩm
                 {searchTerm && (
                   <span className="search-term">
-                    kết quả cho "{searchTerm}"
-                    <button className="clear-search" onClick={() => {
-                      setSearchTerm('');
-                      setSearchParams({});
-                    }}>
+                    cho "<strong>{searchTerm}</strong>"
+                    <button onClick={clearSearch} className="clear-search-inline" title="Xóa tìm kiếm">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <line x1="18" y1="6" x2="6" y2="18"/>
                         <line x1="6" y1="6" x2="18" y2="18"/>
@@ -409,11 +487,11 @@ const ProductsPage = () => {
                     <div className="product-pricing">
                       {product.discount_price ? (
                         <>
-                          <span className="current-price">${formatPrice(product.discount_price)}</span>
-                          <span className="original-price">${formatPrice(product.price)}</span>
+                          <span className="current-price">{formatPrice(product.discount_price)}</span>
+                          <span className="original-price">{formatPrice(product.price)}</span>
                         </>
                       ) : (
-                        <span className="current-price">${formatPrice(product.price)}</span>
+                        <span className="current-price">{formatPrice(product.price)}</span>
                       )}
                     </div>
 
@@ -438,14 +516,15 @@ const ProductsPage = () => {
 
                     <button 
                       className="add-to-cart-btn"
-                      onClick={(e) => handleAddToCart(product, e)}
+                      onClick={(e) => handleAddToCart(e, product)}
+                      disabled={product.stock === 0}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="9" cy="21" r="1"/>
                         <circle cx="20" cy="21" r="1"/>
-                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                        <path d="m1 1 4 4m0 0 2.68 11.35a2 2 0 0 0 2 1.65h9.72a2 2 0 0 0 2-1.65L23 6H6"/>
                       </svg>
-                      Thêm vào giỏ
+                      {product.stock === 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
                     </button>
                   </div>
                 </div>

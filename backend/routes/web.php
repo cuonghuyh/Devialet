@@ -5,7 +5,6 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\Admin\ProductManagementController;
-use App\Http\Controllers\CartController;
 
 Route::middleware('web')->group(function () {
     // Main SPA route - Load React app
@@ -47,13 +46,6 @@ Route::middleware('web')->group(function () {
         return view('test-upload');
     });
     Route::post('/test-upload', [ProductController::class, 'testUpload']);
-
-    // Cart Routes
-    Route::get('/cart', [CartController::class, 'index'])->name('cart')->middleware('auth');
-    Route::post('/cart/add', [CartController::class, 'addToCart'])->name('cart.add');
-    Route::get('/cart/data', [CartController::class, 'getCart'])->name('cart.get');
-    Route::post('/cart/update/{itemId}', [CartController::class, 'updateQuantity'])->name('cart.update');
-    Route::delete('/cart/remove/{itemId}', [CartController::class, 'removeItem'])->name('cart.remove');
 
     // Admin Routes (protected by admin middleware)
     Route::prefix('admin')->middleware('admin')->group(function () {

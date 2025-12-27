@@ -3,12 +3,12 @@ import './BuyNowButton.css';
 
 const BuyNowButton = ({ price, onClick }) => {
   const formattedPrice = price 
-    ? `$${parseFloat(price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : '$0.00';
+    ? `${new Intl.NumberFormat('vi-VN').format(parseFloat(price))} ₫`
+    : '0 ₫';
 
   return (
     <div 
-      data-tooltip={`Price: ${formattedPrice}`} 
+      data-tooltip={`Giá: ${formattedPrice}`} 
       className="buy-now-button"
       onClick={onClick}
     >

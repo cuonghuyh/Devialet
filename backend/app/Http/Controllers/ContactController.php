@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use App\Mail\ContactMail;
+use App\Models\Contact;
 
 class ContactController extends Controller
 {
@@ -24,31 +26,40 @@ class ContactController extends Controller
             'message' => 'required|string|max:5000',
         ]);
 
+        // Save contact to database
+        try {
+            Contact::create($validated);
+        } catch (\Exception $e) {
+            Log::error('Failed to save contact to database: ' . $e->getMessage());
+        }
+
         // Send email notification
         try {
-            // Send email to your Gmail (you need to set this in .env as MAIL_TO_ADDRESS)
-            $recipientEmail = env('MAIL_TO_ADDRESS', 'your-email@gmail.com');
+            $recipientEmail = env('MAIL_TO_ADDRESS', 'huynhkhang24032004@gmail.com');
             Mail::to($recipientEmail)->send(new ContactMail($validated));
             
-            // Check if it's an API request
+            Log::info('Contact email sent successfully to: ' . $recipientEmail);
+            
             if ($request->wantsJson() || $request->is('api/*')) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Thank you for contacting us! We will get back to you soon.'
+                    'message' => 'Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi trong 24h.'
                 ]);
             }
             
-            return redirect()->back()->with('success', 'Thank you for contacting us! We will get back to you soon.');
+            return redirect()->back()->with('success', 'Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi trong 24h.');
         } catch (\Exception $e) {
-            // Check if it's an API request
+            Log::error('Contact email failed: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
             if ($request->wantsJson() || $request->is('api/*')) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Sorry, something went wrong. Please try again later.'
+                    'message' => 'Không thể gửi email. Lỗi: ' . $e->getMessage()
                 ], 500);
             }
             
-            return redirect()->back()->with('error', 'Sorry, something went wrong. Please try again later: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Không thể gửi email. Lỗi: ' . $e->getMessage());
         }
     }
 }

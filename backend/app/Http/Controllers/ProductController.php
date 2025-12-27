@@ -23,23 +23,14 @@ class ProductController extends Controller
             }
         }
 
-        // Optimized search with fulltext or LIKE fallback
+        // Search products by name and description
         if ($request->has('search') && !empty($request->search)) {
             $searchTerm = $request->search;
             
-            // Try fulltext search first (faster for longer texts)
-            try {
-                $query->whereRaw(
-                    "MATCH(name, description) AGAINST(? IN NATURAL LANGUAGE MODE)",
-                    [$searchTerm]
-                );
-            } catch (\Exception $e) {
-                // Fallback to LIKE if fulltext index not available
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('name', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('description', 'LIKE', "%{$searchTerm}%");
-                });
-            }
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+            });
         }
 
         // Order by relevance and get results
@@ -69,9 +60,35 @@ class ProductController extends Controller
         
         // Check if request wants JSON (API request)
         if (request()->wantsJson() || request()->is('api/*')) {
+            // Load reviews with user in single query for faster loading
+            $reviews = \App\Models\ProductReview::with('user')
+                ->where('product_id', $product->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            $totalReviews = $reviews->count();
+            $averageRating = $totalReviews > 0 ? round($reviews->avg('rating'), 1) : 0;
+            
+            $formattedReviews = $reviews->map(function ($review) {
+                return [
+                    'id' => $review->id,
+                    'rating' => $review->rating,
+                    'comment' => $review->comment,
+                    'created_at' => $review->created_at->format('d/m/Y H:i'),
+                    'user' => [
+                        'id' => $review->user->id,
+                        'name' => $review->user->first_name . ' ' . $review->user->last_name,
+                        'avatar' => $review->user->avatar,
+                    ],
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'product' => $product
+                'product' => $product,
+                'reviews' => $formattedReviews,
+                'average_rating' => $averageRating,
+                'total_reviews' => $totalReviews,
             ]);
         }
 

@@ -16,27 +16,28 @@ class ReviewController extends Controller
         $reviews = ProductReview::with('user')
             ->where('product_id', $productId)
             ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($review) {
-                return [
-                    'id' => $review->id,
-                    'rating' => $review->rating,
-                    'comment' => $review->comment,
-                    'created_at' => $review->created_at->format('d/m/Y H:i'),
-                    'user' => [
-                        'id' => $review->user->id,
-                        'name' => $review->user->first_name . ' ' . $review->user->last_name,
-                        'avatar' => $review->user->avatar,
-                    ],
-                ];
-            });
+            ->get();
 
-        $product = Product::findOrFail($productId);
-        $averageRating = $product->averageRating();
-        $totalReviews = $product->reviewsCount();
+        // Calculate average and count directly from fetched reviews (no extra queries)
+        $totalReviews = $reviews->count();
+        $averageRating = $totalReviews > 0 ? $reviews->avg('rating') : 0;
+
+        $formattedReviews = $reviews->map(function ($review) {
+            return [
+                'id' => $review->id,
+                'rating' => $review->rating,
+                'comment' => $review->comment,
+                'created_at' => $review->created_at->format('d/m/Y H:i'),
+                'user' => [
+                    'id' => $review->user->id,
+                    'name' => $review->user->first_name . ' ' . $review->user->last_name,
+                    'avatar' => $review->user->avatar,
+                ],
+            ];
+        });
 
         return response()->json([
-            'reviews' => $reviews,
+            'reviews' => $formattedReviews,
             'average_rating' => round($averageRating, 1),
             'total_reviews' => $totalReviews,
         ]);
@@ -181,6 +182,20 @@ class ReviewController extends Controller
                 'rating' => $review->rating,
                 'comment' => $review->comment,
             ] : null,
+        ]);
+    }
+
+    /**
+     * Lấy danh sách product IDs mà user đã review
+     */
+    public function getMyReviewedProducts()
+    {
+        $productIds = ProductReview::where('user_id', auth()->id())
+            ->pluck('product_id')
+            ->toArray();
+
+        return response()->json([
+            'reviewed_product_ids' => $productIds,
         ]);
     }
 

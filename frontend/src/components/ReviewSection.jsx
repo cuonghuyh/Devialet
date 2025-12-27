@@ -3,11 +3,11 @@ import { reviewAPI } from '../api/review';
 import useAuthStore from '../store/authStore';
 import './ReviewSection.css';
 
-const ReviewSection = ({ productId }) => {
+const ReviewSection = ({ productId, initialData }) => {
   const { isAuthenticated, user } = useAuthStore();
-  const [reviews, setReviews] = useState([]);
-  const [averageRating, setAverageRating] = useState(0);
-  const [totalReviews, setTotalReviews] = useState(0);
+  const [reviews, setReviews] = useState(initialData?.reviews || []);
+  const [averageRating, setAverageRating] = useState(initialData?.average_rating || 0);
+  const [totalReviews, setTotalReviews] = useState(initialData?.total_reviews || 0);
   const [userReview, setUserReview] = useState(null);
   const [canReview, setCanReview] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -15,20 +15,71 @@ const ReviewSection = ({ productId }) => {
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [reviewsLoading, setReviewsLoading] = useState(!initialData);
 
   useEffect(() => {
-    loadReviews();
-    if (isAuthenticated) {
-      checkUserReview();
-    }
-  }, [productId, isAuthenticated]);
+    // If we have initialData, only check user review status (much faster!)
+    const loadData = async () => {
+      if (!initialData) {
+        setReviewsLoading(true);
+      }
+      
+      try {
+        const promises = [];
+        
+        // Only fetch reviews if no initialData
+        if (!initialData) {
+          promises.push(reviewAPI.getProductReviews(productId));
+        }
+        
+        // Always check user review status if authenticated
+        if (isAuthenticated) {
+          promises.push(reviewAPI.checkUserReview(productId));
+        }
+        
+        if (promises.length === 0) {
+          setReviewsLoading(false);
+          return;
+        }
+        
+        const results = await Promise.all(promises);
+        
+        let resultIndex = 0;
+        
+        // Set reviews data only if fetched
+        if (!initialData) {
+          const reviewsData = results[resultIndex++];
+          setReviews(reviewsData.reviews || []);
+          setAverageRating(reviewsData.average_rating || 0);
+          setTotalReviews(reviewsData.total_reviews || 0);
+        }
+        
+        // Set user review data if authenticated
+        if (isAuthenticated && results[resultIndex]) {
+          const userReviewData = results[resultIndex];
+          setCanReview(userReviewData.can_review);
+          if (userReviewData.has_reviewed) {
+            setUserReview(userReviewData.review);
+            setRating(userReviewData.review.rating);
+            setComment(userReviewData.review.comment || '');
+          }
+        }
+      } catch (err) {
+        console.error('Error loading reviews:', err);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [productId, isAuthenticated, initialData]);
 
   const loadReviews = async () => {
     try {
       const data = await reviewAPI.getProductReviews(productId);
-      setReviews(data.reviews);
-      setAverageRating(data.average_rating);
-      setTotalReviews(data.total_reviews);
+      setReviews(data.reviews || []);
+      setAverageRating(data.average_rating || 0);
+      setTotalReviews(data.total_reviews || 0);
     } catch (err) {
       console.error('Error loading reviews:', err);
     }

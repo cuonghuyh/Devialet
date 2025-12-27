@@ -11,7 +11,7 @@ class PasswordReset extends Model
      *
      * @var string
      */
-    protected $table = 'user_password_resets';
+    protected $table = 'password_resets';
 
     protected $fillable = [
         'email',

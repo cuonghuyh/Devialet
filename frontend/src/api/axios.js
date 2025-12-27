@@ -14,7 +14,7 @@ const api = axios.create({
 // Add token to requests
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -31,11 +31,11 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Unauthorized - clear token
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
       
       // Chỉ redirect nếu không phải đang ở trang login hoặc public pages
-      const publicPaths = ['/login', '/register', '/products', '/', '/forgot-password'];
+      const publicPaths = ['/auth', '/login', '/register', '/products', '/', '/forgot-password'];
       const currentPath = window.location.pathname;
       
       if (!publicPaths.some(path => currentPath.startsWith(path))) {
