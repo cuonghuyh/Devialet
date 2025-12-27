@@ -25,5 +25,6 @@ return [
         'http://devialet.netlify.app',
         'https://devialet-shop.netlify.app',
         'https://devialet-shop.vercel.app',
+        'https://devialet.vercel.app',
     ],
 ];
